@@ -9,8 +9,8 @@ import (
 	"io"
 )
 
-//CipherBlockMode represents Cipher Block Mode used for encryption/decryption
-type CipherBlockMode int
+//cipherblockmode represents Cipher Block Mode used for encryption/decryption
+type cipherblockmode int
 
 // Structure representing cipher block modes
 const (
@@ -276,7 +276,8 @@ func decryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func encryptTextMessage(key []byte, message string, cipherblockmode CipherBlockMode) (result []byte, err error) {
+//EncryptTextMessage encrypts given string using given key. It takes key, message string and cipher block mode as arguument. As a result byte array is produced
+func EncryptTextMessage(key []byte, message string, cipherblockmode cipherblockmode) (result []byte, err error) {
 
 	bMessage := []byte(message)
 	bReader := bytes.NewReader(bMessage)
@@ -300,7 +301,8 @@ func encryptTextMessage(key []byte, message string, cipherblockmode CipherBlockM
 	return
 }
 
-func decryptTextMessage(key []byte, message []byte, cipherblockmode CipherBlockMode) (result string, err error) {
+//DecryptTextMessage decrypts given bytes to readable string. It takes key, input byte array and cipher block mode as argument. As a result output string is produced.
+func DecryptTextMessage(key []byte, message []byte, cipherblockmode cipherblockmode) (result string, err error) {
 
 	bReader := bytes.NewReader([]byte(message))
 	var b bytes.Buffer
@@ -308,17 +310,14 @@ func decryptTextMessage(key []byte, message []byte, cipherblockmode CipherBlockM
 	switch cipherblockmode {
 	case CBC:
 		err = decryptCBC(key, bReader, io.Writer(&b))
-		result = string(b.Bytes())
 	case CFB:
 		err = decryptCFB(key, bReader, io.Writer(&b))
-		result = string(b.Bytes())
 	case OFB:
 		err = decryptOFB(key, bReader, io.Writer(&b))
-		result = string(b.Bytes())
 	case ECB:
 		err = decryptECB(key, bReader, io.Writer(&b))
-		result = string(b.Bytes())
 	}
 
+	result = string(b.Bytes())
 	return
 }

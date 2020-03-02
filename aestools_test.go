@@ -13,13 +13,13 @@ func TestTextMessagesEncryptionECB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = encryptTextMessage(key, msg, ECB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, msg, ECB); err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Encrypted ECB: " + hex.EncodeToString(encrypted))
 
-	if decrypted, err = decryptTextMessage(key, encrypted, ECB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, encrypted, ECB); err != nil {
 		t.Error(err)
 	}
 
@@ -40,13 +40,13 @@ func TestTextMessagesEncryptionCBC(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = encryptTextMessage(key, msg, CBC); err != nil {
+	if encrypted, err = EncryptTextMessage(key, msg, CBC); err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Encrypted CBC: " + hex.EncodeToString(encrypted))
 
-	if decrypted, err = decryptTextMessage(key, encrypted, CBC); err != nil {
+	if decrypted, err = DecryptTextMessage(key, encrypted, CBC); err != nil {
 		t.Error(err)
 	}
 
@@ -67,13 +67,13 @@ func TestTextMessagesEncryptionCFB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = encryptTextMessage(key, msg, CFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, msg, CFB); err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Encrypted CFB: " + hex.EncodeToString(encrypted))
 
-	if decrypted, err = decryptTextMessage(key, encrypted, CFB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, encrypted, CFB); err != nil {
 		t.Error(err)
 	}
 
@@ -94,13 +94,13 @@ func TestTextMessagesEncryptionOFB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = encryptTextMessage(key, msg, OFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, msg, OFB); err != nil {
 		t.Error(err)
 	}
 
 	t.Log("Encrypted OFB: " + hex.EncodeToString(encrypted))
 
-	if decrypted, err = decryptTextMessage(key, encrypted, OFB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, encrypted, OFB); err != nil {
 		t.Error(err)
 	}
 

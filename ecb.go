@@ -16,6 +16,7 @@ func newECB(b cipher.Block) *ecb {
 
 type ecbEncrypter ecb
 
+//NewECBEncrypter gives factory for encrypting blocks using ecb cipher
 func NewECBEncrypter(b cipher.Block) cipher.BlockMode {
 	return (*ecbEncrypter)(newECB(b))
 }
@@ -38,6 +39,7 @@ func (x *ecbEncrypter) CryptBlocks(dst, src []byte) {
 
 type ecbDecrypter ecb
 
+//NewECBDecrypter gives factory for decrypting blocks using ecb cipher
 func NewECBDecrypter(b cipher.Block) cipher.BlockMode {
 	return (*ecbDecrypter)(newECB(b))
 }
