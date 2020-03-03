@@ -5,3 +5,5 @@ Simple file transfer sender and receiver tool using TCP written in go (GUI inclu
 
 Files should be encrypted using symmetric alghorytms because this method is much faster (many modern processors have AES instruction set included). Asymmetric encryption should be used for encrypting small amount of data (like our session key used for encrypting file).
 
+## Requirements
+`go get -u golang.org/x/crypto/...`
