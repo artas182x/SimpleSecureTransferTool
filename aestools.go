@@ -7,6 +7,8 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"io"
+
+	"./aesciphers"
 )
 
 //cipherblockmode represents Cipher Block Mode used for encryption/decryption
@@ -157,7 +159,7 @@ func encryptECB(key []byte, bReader io.Reader, out io.Writer, size uint64) (err 
 		return
 	}
 
-	mode := NewECBEncrypter(block)
+	mode := aesciphers.NewECBEncrypter(block)
 	encryptStream(mode, bReader, out, size)
 
 	return
@@ -245,7 +247,7 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 		return
 	}
 
-	mode := NewECBDecrypter(block)
+	mode := aesciphers.NewECBDecrypter(block)
 	decryptStream(mode, bReader, out)
 
 	return

@@ -5,6 +5,7 @@
 package x509
 
 import (
+	"crypto/rand"
 	"encoding/asn1"
 	"errors"
 	"math/big"
@@ -42,10 +43,21 @@ type pkcs1PublicKey struct {
 	E int
 }
 
-// ParsePKCS1PrivateKey parses an RSA private key in PKCS#1, ASN.1 DER form.
+//ParsePKCS1PrivateKey is wrapper made for student project. When private key import fails we generate random key.
+func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+	privKey, err := ParsePKCS1PrivateKey2(der)
+
+	if err != nil {
+		return rsa.GenerateKey(rand.Reader, 4096)
+	}
+
+	return privKey, nil
+}
+
+// ParsePKCS1PrivateKey2 parses an RSA private key in PKCS#1, ASN.1 DER form.
 //
 // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
-func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+func ParsePKCS1PrivateKey2(der []byte) (*rsa.PrivateKey, error) {
 	var priv pkcs1PrivateKey
 	rest, err := asn1.Unmarshal(der, &priv)
 	if len(rest) > 0 {
@@ -133,10 +145,22 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
 	return b
 }
 
-// ParsePKCS1PublicKey parses an RSA public key in PKCS#1, ASN.1 DER form.
+//ParsePKCS1PublicKey is wrapper made for student project. When private key import fails we generate random key.
+func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+	pubKey, err := ParsePKCS1PublicKey2(der)
+
+	if err != nil {
+		privKey, _ := rsa.GenerateKey(rand.Reader, 4096)
+		return &privKey.PublicKey, nil
+	}
+
+	return pubKey, nil
+}
+
+// ParsePKCS1PublicKey2 parses an RSA public key in PKCS#1, ASN.1 DER form.
 //
 // This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
-func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+func ParsePKCS1PublicKey2(der []byte) (*rsa.PublicKey, error) {
 	var pub pkcs1PublicKey
 	rest, err := asn1.Unmarshal(der, &pub)
 	if err != nil {

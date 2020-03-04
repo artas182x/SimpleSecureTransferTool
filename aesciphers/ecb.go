@@ -1,4 +1,4 @@
-package main
+package aesciphers
 
 import "crypto/cipher"
 

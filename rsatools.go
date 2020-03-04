@@ -3,7 +3,8 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha512"
-	"encoding/pem"
+
+	"./pem"
 
 	"./x509"
 
@@ -16,12 +17,12 @@ func GenerateKeyPair(bits int) ([]byte, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return ExportPrivateKey(privkey), ExportPublicKey(&privkey.PublicKey), err
+	return exportPrivateKey(privkey), exportPublicKey(&privkey.PublicKey), err
 }
 
 //EncryptData encrypts byte array using public key
 func EncryptData(data []byte, pubKey []byte) (out []byte, err error) {
-	pubKeyImported, err := ImportPublicKey(pubKey)
+	pubKeyImported, err := importPublicKey(pubKey)
 	if err != nil {
 		return
 	}
@@ -36,7 +37,7 @@ func EncryptData(data []byte, pubKey []byte) (out []byte, err error) {
 
 //DecryptData decrypts byte array using public key
 func DecryptData(data []byte, privKey []byte) (out []byte, err error) {
-	privKeyImported, err := ImportPrivateKey(privKey)
+	privKeyImported, err := importPrivateKey(privKey)
 	hash := sha512.New()
 	out, err = rsa.DecryptOAEP(hash, rand.Reader, privKeyImported, importMsg(data), nil)
 	if err != nil {
@@ -45,38 +46,34 @@ func DecryptData(data []byte, privKey []byte) (out []byte, err error) {
 	return
 }
 
-//ExportPublicKey is used to export public key in friendly format (PCKS1-encoded )
-func ExportPublicKey(pubkey *rsa.PublicKey) []byte {
+//exportPublicKey is used to export public key in friendly format (PCKS1-encoded )
+func exportPublicKey(pubkey *rsa.PublicKey) []byte {
 	pubkeyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PUBLIC KEY", Bytes: x509.MarshalPKCS1PublicKey(pubkey)})
 	return pubkeyPem
 }
 
-//ExportPrivateKey is used to export public key in friendly format (PCKS1-encoded)
-func ExportPrivateKey(privatekey *rsa.PrivateKey) []byte {
+//exportPrivateKey is used to export public key in friendly format (PCKS1-encoded)
+func exportPrivateKey(privatekey *rsa.PrivateKey) []byte {
 	privatekeyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privatekey)})
 	return privatekeyPem
 }
 
-//ImportPrivateKey is used to import PCKS1 encoded private key
-func ImportPrivateKey(privKey []byte) (*rsa.PrivateKey, error) {
-	privKeyImported, _ := pem.Decode(privKey)
-	if privKeyImported != nil {
-		return x509.ParsePKCS1PrivateKey(privKeyImported.Bytes)
-	} else {
-		blankPriv, _, _ := GenerateKeyPair(4096)
-		return ImportPrivateKey(blankPriv)
+//importPrivateKey is used to import PCKS1 encoded private key
+func importPrivateKey(privKey []byte) (*rsa.PrivateKey, error) {
+	privKeyImported, rest := pem.Decode(privKey)
+	if privKeyImported == nil {
+		return x509.ParsePKCS1PrivateKey(rest)
 	}
+	return x509.ParsePKCS1PrivateKey(privKeyImported.Bytes)
 }
 
-//ImportPublicKey is used to import PCKS1 encoded public key
-func ImportPublicKey(pubKey []byte) (*rsa.PublicKey, error) {
-	pubKeyImported, _ := pem.Decode(pubKey)
-	if pubKeyImported != nil {
-		return x509.ParsePKCS1PublicKey(pubKeyImported.Bytes)
-	} else {
-		_, pubBlank, _ := GenerateKeyPair(4096)
-		return ImportPublicKey(pubBlank)
+//importPublicKey is used to import PCKS1 encoded public key
+func importPublicKey(pubKey []byte) (*rsa.PublicKey, error) {
+	pubKeyImported, rest := pem.Decode(pubKey)
+	if pubKeyImported == nil {
+		return x509.ParsePKCS1PublicKey(rest)
 	}
+	return x509.ParsePKCS1PublicKey(pubKeyImported.Bytes)
 
 }
 
