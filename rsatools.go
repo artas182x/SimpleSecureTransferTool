@@ -20,8 +20,8 @@ func GenerateKeyPair(bits int) ([]byte, []byte, error) {
 	return exportPrivateKey(privkey), exportPublicKey(&privkey.PublicKey), err
 }
 
-//EncryptData encrypts byte array using public key
-func EncryptData(data []byte, pubKey []byte) (out []byte, err error) {
+//EncryptRSA encrypts byte array using public key
+func EncryptRSA(data []byte, pubKey []byte) (out []byte, err error) {
 	pubKeyImported, err := importPublicKey(pubKey)
 	if err != nil {
 		return
@@ -35,8 +35,8 @@ func EncryptData(data []byte, pubKey []byte) (out []byte, err error) {
 	return
 }
 
-//DecryptData decrypts byte array using public key
-func DecryptData(data []byte, privKey []byte) (out []byte, err error) {
+//DecryptRSA decrypts byte array using public key
+func DecryptRSA(data []byte, privKey []byte) (out []byte, err error) {
 	privKeyImported, err := importPrivateKey(privKey)
 	hash := sha512.New()
 	out, err = rsa.DecryptOAEP(hash, rand.Reader, privKeyImported, importMsg(data), nil)

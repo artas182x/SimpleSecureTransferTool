@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"math/rand"
 	"time"
 )
@@ -9,13 +8,13 @@ import (
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	teststr := "Example text"
+	/*teststr := "Example text"
 
 	privKey, pubkey, _ := GenerateKeyPair(4096)
 
 	testbyte := []byte(teststr)
 
-	result, err := EncryptData(testbyte, pubkey)
+	result, err := EncryptRSA(testbyte, pubkey)
 
 	if err != nil {
 		log.Fatal(err)
@@ -29,27 +28,30 @@ func main() {
 		privKey[i] = byte(i)
 	}
 
-	decrypted, err := DecryptData(result, privKey)
+	decrypted, err := DecryptRSA(result, privKey)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	println(string(decrypted))
+	println(string(decrypted))*/
 
-	/*	key, _ := hex.DecodeString("7368616e676520746869732070617373")
-		msg := "Test string - testing encryption and decryption"
-		var encrypted []byte
-		var decrypted2 string
+	/*key, _ := hex.DecodeString("7368616e676520746869732070617373")
+	msg := "Test string - testing encryption and decryption"
+	var encrypted []byte
+	var decrypted2 string
+	var err error
 
-		if encrypted, err = EncryptTextMessage(key, msg, ECB); err != nil {
-			log.Fatal(err)
-		}
+	if encrypted, err = EncryptTextMessage(key, msg, CBC); err != nil {
+		log.Fatal(err)
+	}
 
-		if decrypted2, err = DecryptTextMessage(key, encrypted, ECB); err != nil {
-			log.Fatal(err)
-		}
+	if decrypted2, err = DecryptTextMessage(key, encrypted, CBC); err != nil {
+		log.Fatal(err)
+	}
 
-		println(decrypted2)*/
+	println(decrypted2)*/
+
+	NetclientlListener()
 
 }

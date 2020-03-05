@@ -12,7 +12,7 @@ import (
 )
 
 //cipherblockmode represents Cipher Block Mode used for encryption/decryption
-type cipherblockmode int
+type cipherblockmode byte
 
 // Structure representing cipher block modes
 const (

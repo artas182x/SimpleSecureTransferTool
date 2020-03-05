@@ -14,13 +14,13 @@ func TestRSAEncryption(t *testing.T) {
 
 	testbyte := []byte("Test text to encrypt")
 
-	result, err := EncryptData(testbyte, pubkey)
+	result, err := EncryptRSA(testbyte, pubkey)
 
 	if err != nil {
 		t.Error(err)
 	}
 
-	decrypted, err := DecryptData(result, privKey)
+	decrypted, err := DecryptRSA(result, privKey)
 
 	if err != nil {
 		t.Error(err)
@@ -40,13 +40,13 @@ func TestRandomness(t *testing.T) {
 		t.Error(err)
 	}
 
-	result, err := EncryptData(testbyte, pubkey)
+	result, err := EncryptRSA(testbyte, pubkey)
 
 	if err != nil {
 		t.Error(err)
 	}
 
-	result2, err := EncryptData(testbyte, pubkey)
+	result2, err := EncryptRSA(testbyte, pubkey)
 
 	if err != nil {
 		t.Error(err)
