@@ -12,7 +12,7 @@ import (
 )
 
 //GenerateKeyPair is used for generating private and public key
-func GenerateKeyPair(bits int) ([]byte, []byte, error) {
+func GenerateKeyPair(bits int) (privKey []byte, pubKey []byte, err error) {
 	privkey, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
 		return nil, nil, err

@@ -1,12 +1,11 @@
 package main
 
 import (
-	"math/rand"
+	"fmt"
 	"time"
 )
 
 func main() {
-	rand.Seed(time.Now().UTC().UnixNano())
 
 	/*teststr := "Example text"
 
@@ -52,6 +51,28 @@ func main() {
 
 	println(decrypted2)*/
 
-	NetclientlListener()
+	encMess := EncryptedMessageHandler(32, CBC)
+	encMess.LoadKeys()
+
+	netClient := NetClientInit(27001, encMess)
+
+	encMess2 := EncryptedMessageHandler(32, CBC)
+	encMess2.LoadKeys()
+
+	netClient2 := NetClientInit(27002, encMess2)
+
+	go netClient.NetclientListen()
+	go netClient2.NetclientListen()
+
+	for i := 0; i < 10; i++ {
+		time.Sleep(1000)
+	}
+
+	err := netClient.SendHello("127.0.0.1:27002")
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	netClient.SendTextMessage("TEST")
 
 }

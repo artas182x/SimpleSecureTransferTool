@@ -22,9 +22,15 @@ const (
 	OFB
 )
 
-// IV - initialization vector
-func generateIV(iv []byte) (err error) {
+//GenerateIV generates random IV - initialization vector with size of array. Assumes seed is initialized
+func GenerateIV(iv []byte) (err error) {
 	_, err = io.ReadFull(rand.Reader, iv)
+	return
+}
+
+//GenerateKey generates random aes key with size of array. Assumes seed is initialized
+func GenerateKey(key []byte) (err error) {
+	_, err = io.ReadFull(rand.Reader, key)
 	return
 }
 
@@ -104,16 +110,9 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) er
 	return nil
 }
 
-func encryptCFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func encryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
 
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	err = generateIV(iv[:])
 	if err != nil {
 		return
 	}
@@ -121,7 +120,7 @@ func encryptCFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	stream := cipher.NewCFBEncrypter(block, iv[:])
 
 	writer := &cipher.StreamWriter{S: stream, W: out}
-	writer.W.Write(iv)
+
 	// Copy the input to the output buffer, encrypting as we go.
 	if _, err := io.Copy(writer, bReader); err != nil {
 		panic(err)
@@ -130,23 +129,14 @@ func encryptCFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func encryptCBC(key []byte, bReader io.Reader, out io.Writer, size uint64) (err error) {
+func encryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer, size uint64) (err error) {
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	err = generateIV(iv[:])
 	if err != nil {
 		return
 	}
 
 	mode := cipher.NewCBCEncrypter(block, iv[:])
 
-	// Append IV at the beggining of file and encrypt stream
-	out.Write(iv)
 	encryptStream(mode, bReader, out, size)
 
 	return
@@ -165,16 +155,9 @@ func encryptECB(key []byte, bReader io.Reader, out io.Writer, size uint64) (err 
 	return
 }
 
-func encryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func encryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
 
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	err = generateIV(iv[:])
 	if err != nil {
 		return
 	}
@@ -182,9 +165,6 @@ func encryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	stream := cipher.NewOFB(block, iv[:])
 
 	writer := &cipher.StreamWriter{S: stream, W: out}
-
-	// Append IV at the beggining of file
-	writer.W.Write(iv)
 
 	// Copy the input to the output buffer, encrypting as we go.
 	if _, err := io.Copy(writer, bReader); err != nil {
@@ -194,16 +174,9 @@ func encryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func decryptCFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
 
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	_, err = io.ReadFull(bReader, iv)
 	if err != nil {
 		return
 	}
@@ -219,15 +192,8 @@ func decryptCFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func decryptCBC(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	_, err = io.ReadFull(bReader, iv)
 	if err != nil {
 		return
 	}
@@ -253,16 +219,9 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func decryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
 
 	block, err := aes.NewCipher(key)
-	if err != nil {
-		return
-	}
-
-	//Put IV at the beggining of encrypted files
-	iv := make([]byte, block.BlockSize())
-	_, err = io.ReadFull(bReader, iv)
 	if err != nil {
 		return
 	}
@@ -279,7 +238,7 @@ func decryptOFB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 }
 
 //EncryptTextMessage encrypts given string using given key. It takes key, message string and cipher block mode as arguument. As a result byte array is produced
-func EncryptTextMessage(key []byte, message string, cipherblockmode cipherblockmode) (result []byte, err error) {
+func EncryptTextMessage(key []byte, iv []byte, message string, cipherblockmode cipherblockmode) (result []byte, err error) {
 
 	bMessage := []byte(message)
 	bReader := bytes.NewReader(bMessage)
@@ -287,13 +246,13 @@ func EncryptTextMessage(key []byte, message string, cipherblockmode cipherblockm
 
 	switch cipherblockmode {
 	case CBC:
-		err = encryptCBC(key, bReader, io.Writer(&b), uint64(len(bMessage)))
+		err = encryptCBC(key, iv, bReader, io.Writer(&b), uint64(len(bMessage)))
 		result = b.Bytes()
 	case CFB:
-		err = encryptCFB(key, bReader, io.Writer(&b))
+		err = encryptCFB(key, iv, bReader, io.Writer(&b))
 		result = b.Bytes()
 	case OFB:
-		err = encryptOFB(key, bReader, io.Writer(&b))
+		err = encryptOFB(key, iv, bReader, io.Writer(&b))
 		result = b.Bytes()
 	case ECB:
 		err = encryptECB(key, bReader, io.Writer(&b), uint64(len(bMessage)))
@@ -304,18 +263,18 @@ func EncryptTextMessage(key []byte, message string, cipherblockmode cipherblockm
 }
 
 //DecryptTextMessage decrypts given bytes to readable string. It takes key, input byte array and cipher block mode as argument. As a result output string is produced.
-func DecryptTextMessage(key []byte, message []byte, cipherblockmode cipherblockmode) (result string, err error) {
+func DecryptTextMessage(key []byte, iv []byte, message []byte, cipherblockmode cipherblockmode) (result string, err error) {
 
 	bReader := bytes.NewReader([]byte(message))
 	var b bytes.Buffer
 
 	switch cipherblockmode {
 	case CBC:
-		err = decryptCBC(key, bReader, io.Writer(&b))
+		err = decryptCBC(key, iv, bReader, io.Writer(&b))
 	case CFB:
-		err = decryptCFB(key, bReader, io.Writer(&b))
+		err = decryptCFB(key, iv, bReader, io.Writer(&b))
 	case OFB:
-		err = decryptOFB(key, bReader, io.Writer(&b))
+		err = decryptOFB(key, iv, bReader, io.Writer(&b))
 	case ECB:
 		err = decryptECB(key, bReader, io.Writer(&b))
 	}
