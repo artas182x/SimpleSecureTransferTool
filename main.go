@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 )
 
@@ -51,12 +53,17 @@ func main() {
 
 	println(decrypted2)*/
 
-	encMess := EncryptedMessageHandler(32, CBC)
+	exampleNetclient()
+
+}
+
+func exampleNetclient() {
+	encMess := EncryptedMessageHandler(32, ECB)
 	encMess.LoadKeys()
 
 	netClient := NetClientInit(27001, encMess)
 
-	encMess2 := EncryptedMessageHandler(32, CBC)
+	encMess2 := EncryptedMessageHandler(32, ECB)
 	encMess2.LoadKeys()
 
 	netClient2 := NetClientInit(27002, encMess2)
@@ -71,8 +78,39 @@ func main() {
 	err := netClient.SendHello("127.0.0.1:27002")
 	if err != nil {
 		fmt.Println(err.Error())
+		netClient.connected = false
+		//TODO IN GUI: Handle error, mark connection as disconnected
 	}
 
-	netClient.SendTextMessage("TEST")
+	//	netClient.SendTextMessage("TEST")
 
+	netClient2.receiveDir = "test"
+	file, _ := os.Open("/home/artas182x/Downloads/Lab4.zip")
+	netClient.SendFile(file)
+}
+
+func exampleFileEncryptionAndDecryption() {
+	encMess := EncryptedMessageHandler(32, CBC)
+	file, err := os.Open("main.go")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fileEncrypted, err := os.Create("main.go.encrypted")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fileDecrypted, err := os.Create("main.go.decrypted")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	EncryptFile(encMess.aesKey, encMess.iv, file, fileEncrypted, encMess.cipherMode)
+	fileEncrypted.Close()
+	fileEncrypted, err = os.Open("main.go.encrypted")
+	if err != nil {
+		log.Fatal(err)
+	}
+	DecryptFile(encMess.aesKey, encMess.iv, fileEncrypted, fileDecrypted, encMess.cipherMode)
 }

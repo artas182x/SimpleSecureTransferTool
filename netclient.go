@@ -6,7 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
+	"os"
+	"path"
+	"strconv"
 	"strings"
 )
 
@@ -23,6 +27,7 @@ type NetClient struct {
 	connected      bool
 	remoteIP       string
 	messageHandler EncMess
+	receiveDir     string
 }
 
 // Structure representing packet types
@@ -32,6 +37,7 @@ const (
 	HELLORESPONSE
 	CONNECTIONPROPERTIES
 	TEXTMESSAGE
+	FILE
 )
 
 //NetClientInit initializes netclient with listen port number
@@ -39,6 +45,7 @@ func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
 	netClient.connected = false
 	netClient.messageHandler = encMess
 	netClient.listenport = listenPort
+	netClient.receiveDir = ""
 	return
 }
 
@@ -194,6 +201,15 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 				return
 			}
 		}
+	case FILE:
+		if netClient.connected {
+			err = netClient.ReceiveFile(reader)
+			if err != nil {
+				fmt.Println(err)
+				c.Close()
+				return
+			}
+		}
 	}
 
 	c.Write([]byte("OK"))
@@ -308,4 +324,147 @@ func (netClient *NetClient) SendTextMessage(origText string) error {
 	}
 
 	return nil
+
+}
+
+//ReceiveFile decryps received file using AES
+func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
+	bufferFileName := make([]byte, 64)
+	bufferFileSize := make([]byte, 10)
+
+	reader.Read(bufferFileSize)
+	fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
+
+	reader.Read(bufferFileName)
+	fileName := strings.Trim(string(bufferFileName), ":")
+
+	newFile, err := os.Create(fileName + ".encrypted")
+
+	if err != nil {
+		return err
+	}
+	var receivedBytes int64
+
+	for {
+		if (fileSize - receivedBytes) < bufsize {
+			io.CopyN(newFile, reader, (fileSize - receivedBytes))
+			reader.Read(make([]byte, (receivedBytes+bufsize)-fileSize))
+			break
+		}
+		io.CopyN(newFile, reader, bufsize)
+		receivedBytes += bufsize
+
+		fmt.Printf("Downloading file: %f %\n", float64(receivedBytes)/float64(fileSize)*100)
+	}
+
+	newFileDecrypted, err := os.Create(path.Join(netClient.receiveDir, fileName))
+
+	if err != nil {
+		return err
+	}
+
+	newFile.Close()
+
+	newFile, err = os.Open(fileName + ".encrypted")
+
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Decrypting file...")
+
+	if err := DecryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, newFile,
+		newFileDecrypted, netClient.messageHandler.cipherMode); err != nil {
+		return err
+	}
+
+	newFile.Close()
+	newFileDecrypted.Close()
+
+	os.Remove(fileName + ".encrypted")
+
+	return nil
+}
+
+//SendFile sends encrypted file using AES
+func (netClient *NetClient) SendFile(file *os.File) error {
+	randFileName := randString(10)
+	var fileEncrypted *os.File
+	var err error
+
+	if fileEncrypted, err = os.Create(randFileName); err != nil {
+		return err
+	}
+
+	if err := EncryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, file,
+		fileEncrypted, netClient.messageHandler.cipherMode); err != nil {
+		return err
+	}
+
+	fileEncrypted.Close()
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", netClient.remoteIP)
+
+	if err != nil {
+		return err
+	}
+
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return err
+	}
+
+	stat, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	fileEncrypted, err = os.Open(randFileName)
+	if err != nil {
+		return err
+	}
+
+	stat2, err := fileEncrypted.Stat()
+	if err != nil {
+		return err
+	}
+
+	fileSize := fillString(strconv.FormatInt(stat2.Size(), 10), 10)
+	fileName := fillString(stat.Name(), 64)
+
+	buf := new(bytes.Buffer)
+
+	binary.Write(buf, endianness, magicnumber)
+	binary.Write(buf, endianness, packettype(FILE))
+
+	conn.Write(buf.Bytes())
+	conn.Write([]byte(fileSize))
+	conn.Write([]byte(fileName))
+
+	sendBuffer := make([]byte, bufsize)
+
+	fmt.Println("Start sending file!")
+
+	for {
+		_, err = fileEncrypted.Read(sendBuffer)
+		if err == io.EOF {
+			break
+		}
+		conn.Write(sendBuffer)
+	}
+
+	bufferbyte := make([]byte, 2)
+	conn.Read(bufferbyte)
+
+	if string(bufferbyte) != "OK" {
+		return errors.New("Wrong response")
+	}
+
+	conn.Close()
+
+	fileEncrypted.Close()
+	os.Remove(randFileName)
+
+	return nil
+
 }

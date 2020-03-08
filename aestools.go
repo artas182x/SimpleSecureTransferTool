@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"io"
+	"os"
 
 	"./aesciphers"
 )
@@ -39,7 +40,7 @@ func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, si
 	blockSize := mode.BlockSize()
 
 	//Write size at the beggining
-	if err := binary.Write(writer, binary.LittleEndian, size); err != nil {
+	if err := binary.Write(writer, binary.BigEndian, size); err != nil {
 		return err
 	}
 
@@ -72,7 +73,7 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) er
 	blockSize := mode.BlockSize()
 
 	//Read size at the beggining
-	if err := binary.Read(reader, binary.LittleEndian, &size); err != nil {
+	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
 		return err
 	}
 
@@ -200,8 +201,11 @@ func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err er
 
 	mode := cipher.NewCBCDecrypter(block, iv[:])
 
-	// Append IV at the beggining of file and encrypt stream
-	decryptStream(mode, bReader, out)
+	err = decryptStream(mode, bReader, out)
+
+	if err != nil {
+		return err
+	}
 
 	return
 }
@@ -214,7 +218,11 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	}
 
 	mode := aesciphers.NewECBDecrypter(block)
-	decryptStream(mode, bReader, out)
+	err = decryptStream(mode, bReader, out)
+
+	if err != nil {
+		return err
+	}
 
 	return
 }
@@ -259,6 +267,10 @@ func EncryptTextMessage(key []byte, iv []byte, message string, cipherblockmode c
 		result = b.Bytes()
 	}
 
+	if err != nil {
+		return nil, err
+	}
+
 	return
 }
 
@@ -279,6 +291,56 @@ func DecryptTextMessage(key []byte, iv []byte, message []byte, cipherblockmode c
 		err = decryptECB(key, bReader, io.Writer(&b))
 	}
 
+	if err != nil {
+		return "", err
+	}
+
 	result = string(b.Bytes())
+
+	return
+}
+
+//EncryptFile encrypts file using given key. It takes key, os.File (twice as input and output) and cipher block mode as argument.
+func EncryptFile(key []byte, iv []byte, input *os.File, output *os.File, cipherblockmode cipherblockmode) (err error) {
+	fi, err := input.Stat()
+	if err != nil {
+		return
+	}
+
+	switch cipherblockmode {
+	case CBC:
+		err = encryptCBC(key, iv, input, output, uint64(fi.Size()))
+	case CFB:
+		err = encryptCFB(key, iv, input, output)
+	case OFB:
+		err = encryptOFB(key, iv, input, output)
+	case ECB:
+		err = encryptECB(key, input, output, uint64(fi.Size()))
+	}
+
+	if err != nil {
+		return err
+	}
+
+	return
+}
+
+//DecryptFile decrypts file using given key. It takes key, os.File (twice as input and output) and cipher block mode as argument.
+func DecryptFile(key []byte, iv []byte, input *os.File, output *os.File, cipherblockmode cipherblockmode) (err error) {
+	switch cipherblockmode {
+	case CBC:
+		err = decryptCBC(key, iv, input, output)
+	case CFB:
+		err = decryptCFB(key, iv, input, output)
+	case OFB:
+		err = decryptOFB(key, iv, input, output)
+	case ECB:
+		err = decryptECB(key, input, output)
+	}
+
+	if err != nil {
+		return err
+	}
+
 	return
 }
