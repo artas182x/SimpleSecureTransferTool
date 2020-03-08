@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/aes"
 	"encoding/hex"
 	"testing"
 )
@@ -13,11 +14,17 @@ func TestTextMessagesEncryptionECB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = EncryptTextMessage(key, msg, ECB); err != nil {
+	iv := make([]byte, aes.BlockSize)
+
+	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, encrypted, ECB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, ECB); err != nil {
+		t.Error(err)
+	}
+
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, ECB); err != nil {
 		t.Error(err)
 	}
 
@@ -38,11 +45,17 @@ func TestTextMessagesEncryptionCBC(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = EncryptTextMessage(key, msg, CBC); err != nil {
+	iv := make([]byte, aes.BlockSize)
+
+	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, encrypted, CBC); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, CBC); err != nil {
+		t.Error(err)
+	}
+
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CBC); err != nil {
 		t.Error(err)
 	}
 
@@ -63,11 +76,17 @@ func TestTextMessagesEncryptionCFB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = EncryptTextMessage(key, msg, CFB); err != nil {
+	iv := make([]byte, aes.BlockSize)
+
+	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, encrypted, CFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, CFB); err != nil {
+		t.Error(err)
+	}
+
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CFB); err != nil {
 		t.Error(err)
 	}
 
@@ -88,11 +107,17 @@ func TestTextMessagesEncryptionOFB(t *testing.T) {
 	var decrypted string
 	var err error
 
-	if encrypted, err = EncryptTextMessage(key, msg, OFB); err != nil {
+	iv := make([]byte, aes.BlockSize)
+
+	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, encrypted, OFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, OFB); err != nil {
+		t.Error(err)
+	}
+
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, OFB); err != nil {
 		t.Error(err)
 	}
 

@@ -354,7 +354,7 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 		io.CopyN(newFile, reader, bufsize)
 		receivedBytes += bufsize
 
-		fmt.Printf("Downloading file: %f %\n", float64(receivedBytes)/float64(fileSize)*100)
+		fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
 	}
 
 	newFileDecrypted, err := os.Create(path.Join(netClient.receiveDir, fileName))
