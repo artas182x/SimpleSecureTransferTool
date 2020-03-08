@@ -88,6 +88,10 @@ func exampleNetclient() {
 	netClient2.receiveDir = "test"
 	file, _ := os.Open("README.md")
 	netClient.SendFile(file)
+
+	if netClient.Ping() {
+		fmt.Println("Ping successful")
+	}
 }
 
 func exampleFileEncryptionAndDecryption() {

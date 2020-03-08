@@ -39,11 +39,12 @@ const (
 	CONNECTIONPROPERTIES
 	TEXTMESSAGE
 	FILE
+	PING
 )
 
 //NetClientInit initializes netclient with listen port number
 func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
-	netClient.connected = false
+	netClient.SetClientState(false)
 	netClient.messageHandler = encMess
 	netClient.listenport = listenPort
 	netClient.receiveDir = ""
@@ -128,7 +129,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 				c.Close()
 			}
 
-			netClient.connected = true
+			netClient.SetClientState(true)
 
 			fmt.Printf("Received hello from: IP: %s PubKey: %s\n", netClient.remoteIP, hex.EncodeToString(netClient.messageHandler.publicKeyClient))
 
@@ -167,7 +168,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 
 			fmt.Println("Received hello response")
 
-			netClient.connected = true
+			netClient.SetClientState(true)
 
 			err = netClient.SendConnectionProperties()
 
@@ -211,6 +212,14 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 				return
 			}
 		}
+	case PING:
+		if netClient.connected {
+			c.Write([]byte("OK"))
+		} else {
+			c.Write([]byte("NK"))
+		}
+		c.Close()
+		return
 	}
 
 	c.Write([]byte("OK"))
@@ -234,7 +243,9 @@ func (netClient *NetClient) send(message []byte, ptype packettype, servAddr stri
 
 	binary.Write(buf, endianness, magicnumber)
 	binary.Write(buf, endianness, ptype)
-	binary.Write(buf, endianness, message)
+	if message != nil {
+		binary.Write(buf, endianness, message)
+	}
 
 	_, err = conn.Write(buf.Bytes())
 	if err != nil {
@@ -472,4 +483,23 @@ func (netClient *NetClient) SendFile(file *os.File) error {
 
 	return nil
 
+}
+
+//Ping check if client is available. Return true if yes available
+//TODO GUI notidy if client disconnects
+func (netClient *NetClient) Ping() bool {
+	response, err := netClient.send(nil, PING, netClient.remoteIP)
+	if err != nil {
+		return false
+	}
+	if string(response) == "OK" {
+		return true
+	}
+	return false
+}
+
+//SetClientState sets if client is connected ot not
+//TODO In gui. Set text and buttons based on this state
+func (netClient *NetClient) SetClientState(connected bool) {
+	netClient.connected = connected
 }
