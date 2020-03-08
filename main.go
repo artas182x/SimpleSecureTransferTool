@@ -59,13 +59,45 @@ func main() {
 
 //Example of started 2 clients on different ports. Normally one computer should have one client started. This is test case.
 func exampleNetclient() {
+	os.MkdirAll("test/client1", os.ModePerm)
+	os.MkdirAll("test/client2", os.ModePerm)
+
 	encMess := EncryptedMessageHandler(32, ECB)
-	encMess.LoadKeys()
+
+	//Example of handling keys in gui
+	err := encMess.LoadKeys("test/client1", "123456")
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("No keypair available. Creating one")
+			if err = encMess.CreateKeys("test/client1", "123456"); err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+		} else {
+			//TODO GUI Bad keys - offer creating new
+			fmt.Println(err.Error())
+		}
+
+	}
 
 	netClient := NetClientInit(27001, encMess)
 
 	encMess2 := EncryptedMessageHandler(32, ECB)
-	encMess2.LoadKeys()
+
+	err = encMess2.LoadKeys("test/client2", "1234567")
+	if err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("No keypair available. Creating one")
+			if err = encMess2.CreateKeys("test/client2", "1234567"); err != nil {
+				fmt.Println(err.Error())
+				return
+			}
+		} else {
+			//TODO GUI Bad keys - offer creating new
+			fmt.Println(err.Error())
+		}
+
+	}
 
 	netClient2 := NetClientInit(27002, encMess2)
 
@@ -76,7 +108,7 @@ func exampleNetclient() {
 		time.Sleep(1000)
 	}
 
-	err := netClient.SendHello("127.0.0.1:27002")
+	err = netClient.SendHello("127.0.0.1:27002")
 	if err != nil {
 		fmt.Println(err.Error())
 		netClient.connected = false

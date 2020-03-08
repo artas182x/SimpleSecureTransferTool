@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/aes"
+	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
 	"math/rand"
+	"os"
+	"path"
 	"time"
 )
 
@@ -195,12 +198,89 @@ func (encMess *EncMess) GenerateTextMessage(origText string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-//LoadKeys Don't generate everytime. Do it on first start and on permises by clicking on option in GUI
-//TODO load public and private key from file in GUI
-func (encMess *EncMess) LoadKeys() (err error) {
+//LoadKeys load keys encrypted by AES-CBC using SHA-256 hash
+//TODO load public and private key from file in GUI at app startup.  Don't throw error when password is incorrect
+func (encMess *EncMess) LoadKeys(dir string, password string) (err error) {
+
+	hash := sha256.Sum256([]byte(password))
+
+	var privKeyEncrypted *os.File
+	var pubKeyEncrypted *os.File
+
+	var privKey = new(bytes.Buffer)
+	var pubKey = new(bytes.Buffer)
+
+	iv := make([]byte, aes.BlockSize)
+
+	if privKeyEncrypted, err = os.Open(path.Join(dir, "privKey")); err != nil {
+		return err
+	}
+
+	if pubKeyEncrypted, err = os.Open(path.Join(dir, "pubKey")); err != nil {
+		return err
+	}
+
+	privKeyEncrypted.Read(iv)
+
+	defer privKeyEncrypted.Close()
+
+	if err = decryptCBC(hash[:], iv, privKeyEncrypted, privKey); err != nil {
+		return err
+	}
+
+	defer pubKeyEncrypted.Close()
+
+	if err = decryptCBC(hash[:], iv, pubKeyEncrypted, pubKey); err != nil {
+		return err
+	}
+
+	encMess.myPrivateKey = privKey.Bytes()
+	encMess.myPublicKey = pubKey.Bytes()
+
+	return nil
+}
+
+//CreateKeys - creates public and private keypair in given directory. Both files encrypted by AES-CBC using SHA-256 hash
+//TODO load create keys in GUI. If there are no key at first app startup they should be created
+func (encMess *EncMess) CreateKeys(dir string, password string) (err error) {
 
 	if encMess.myPrivateKey, encMess.myPublicKey, err = GenerateKeyPair(rsaSize * 8); err != nil {
 		return
+	}
+
+	bReaderPriv := bytes.NewReader(encMess.myPrivateKey)
+	bReaderPub := bytes.NewReader(encMess.myPublicKey)
+
+	hash := sha256.Sum256([]byte(password))
+
+	var privKeyEncrypted *os.File
+	var pubKeyEncrypted *os.File
+
+	if privKeyEncrypted, err = os.Create(path.Join(dir, "privKey")); err != nil {
+		return err
+	}
+
+	if pubKeyEncrypted, err = os.Create(path.Join(dir, "pubKey")); err != nil {
+		return err
+	}
+
+	iv := make([]byte, aes.BlockSize)
+	GenerateIV(encMess.iv)
+
+	if _, err = privKeyEncrypted.Write(iv); err != nil {
+		return err
+	}
+
+	defer privKeyEncrypted.Close()
+
+	if err = encryptCBC(hash[:], iv, bReaderPriv, privKeyEncrypted, uint64(cap(encMess.myPrivateKey))); err != nil {
+		return err
+	}
+
+	defer pubKeyEncrypted.Close()
+
+	if err = encryptCBC(hash[:], iv, bReaderPub, pubKeyEncrypted, uint64(cap(encMess.myPublicKey))); err != nil {
+		return err
 	}
 
 	return nil

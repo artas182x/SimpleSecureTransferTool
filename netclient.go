@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -131,7 +132,9 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 
 			netClient.SetClientState(true)
 
-			fmt.Printf("Received hello from: IP: %s PubKey: %s\n", netClient.remoteIP, hex.EncodeToString(netClient.messageHandler.publicKeyClient))
+			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
+
+			fmt.Printf("Received hello from: IP: %s PubKey Hash: %s\n", netClient.remoteIP, hex.EncodeToString(hash[:]))
 
 			if err := netClient.SendHelloResponse(); err != nil {
 				fmt.Println(err)
