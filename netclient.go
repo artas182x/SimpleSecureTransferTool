@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -129,7 +130,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 
 			netClient.connected = true
 
-			fmt.Println("Received hello")
+			fmt.Printf("Received hello from: IP: %s PubKey: %s\n", netClient.remoteIP, hex.EncodeToString(netClient.messageHandler.publicKeyClient))
 
 			if err := netClient.SendHelloResponse(); err != nil {
 				fmt.Println(err)
@@ -383,6 +384,8 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 
 	os.Remove(fileName + ".encrypted")
 
+	fmt.Println("Decrypted successfully")
+
 	return nil
 }
 
@@ -442,14 +445,16 @@ func (netClient *NetClient) SendFile(file *os.File) error {
 	conn.Write([]byte(fileName))
 
 	sendBuffer := make([]byte, bufsize)
-
-	fmt.Println("Start sending file!")
-
+	sendBytes := 0
 	for {
-		_, err = fileEncrypted.Read(sendBuffer)
+		read, err := fileEncrypted.Read(sendBuffer)
+		sendBytes += read
 		if err == io.EOF {
 			break
 		}
+
+		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
+		sendBytes += read
 		conn.Write(sendBuffer)
 	}
 

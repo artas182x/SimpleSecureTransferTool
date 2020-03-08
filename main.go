@@ -57,6 +57,7 @@ func main() {
 
 }
 
+//Example of started 2 clients on different ports. Normally one computer should have one client started. This is test case.
 func exampleNetclient() {
 	encMess := EncryptedMessageHandler(32, ECB)
 	encMess.LoadKeys()
@@ -82,10 +83,10 @@ func exampleNetclient() {
 		//TODO IN GUI: Handle error, mark connection as disconnected
 	}
 
-	//	netClient.SendTextMessage("TEST")
+	netClient.SendTextMessage("TEST")
 
 	netClient2.receiveDir = "test"
-	file, _ := os.Open("/home/artas182x/Downloads/Lab4.zip")
+	file, _ := os.Open("README.md")
 	netClient.SendFile(file)
 }
 
@@ -106,11 +107,20 @@ func exampleFileEncryptionAndDecryption() {
 		log.Fatal(err)
 	}
 
-	EncryptFile(encMess.aesKey, encMess.iv, file, fileEncrypted, encMess.cipherMode)
+	err = EncryptFile(encMess.aesKey, encMess.iv, file, fileEncrypted, encMess.cipherMode)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	fileEncrypted.Close()
+
 	fileEncrypted, err = os.Open("main.go.encrypted")
 	if err != nil {
 		log.Fatal(err)
 	}
-	DecryptFile(encMess.aesKey, encMess.iv, fileEncrypted, fileDecrypted, encMess.cipherMode)
+
+	err = DecryptFile(encMess.aesKey, encMess.iv, fileEncrypted, fileDecrypted, encMess.cipherMode)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

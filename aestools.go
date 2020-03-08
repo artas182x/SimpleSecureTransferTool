@@ -37,16 +37,16 @@ func GenerateKey(key []byte) (err error) {
 
 //Used for ECB and CBC ciphers only because they implement BlockMode interface
 func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, size uint64) error {
-	blockSize := mode.BlockSize()
+	blockSize := mode.BlockSize() * 128
 
 	//Write size at the beggining
 	if err := binary.Write(writer, binary.BigEndian, size); err != nil {
 		return err
 	}
 
+	buf := make([]byte, blockSize)
 	for {
-		buf := make([]byte, blockSize)
-		_, err := io.ReadFull(reader, buf)
+		_, err := reader.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -70,7 +70,7 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) er
 
 	var size uint64
 	var readBytes uint64
-	blockSize := mode.BlockSize()
+	blockSize := mode.BlockSize() * 128
 
 	//Read size at the beggining
 	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
