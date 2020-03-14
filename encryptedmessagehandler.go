@@ -22,8 +22,8 @@ type EncMess struct {
 	myPublicKey  []byte
 
 	publicKeyClient []byte
-	keySize         int32
-	blockSize       int32
+	keySize         uint32
+	blockSize       uint32
 	iv              []byte
 	//Not used yet
 	alghorytm byte
@@ -33,7 +33,7 @@ type EncMess struct {
 }
 
 //EncryptedMessageHandler creates instance of encrypted message handler
-func EncryptedMessageHandler(keySize int32, cipher cipherblockmode) (encMess EncMess) {
+func EncryptedMessageHandler(keySize uint32, cipher cipherblockmode) (encMess EncMess) {
 	encMess.keySize = keySize
 	encMess.blockSize = aes.BlockSize
 	encMess.cipherMode = cipher
@@ -81,15 +81,26 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte) error {
 	encMess.aesKey = make([]byte, encMess.keySize)
 
 	if err = binary.Read(buf, endianness, encMess.aesKey); err != nil {
-		return err
+		//	return err
 	}
 
 	encMess.iv = make([]byte, encMess.blockSize)
 
 	if encMess.cipherMode == CBC || encMess.cipherMode == OFB || encMess.cipherMode == CFB {
 		if err = binary.Read(buf, endianness, encMess.iv); err != nil {
-			return err
+			//return err
 		}
+	}
+
+	//Wrong connection properties - assume defaults - don't throw error, it's project requirement
+	if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
+		encMess.keySize = 32
+		encMess.blockSize = aes.BlockSize
+		encMess.cipherMode = 0
+		encMess.alghorytm = 0
+		encMess.iv = make([]byte, encMess.blockSize)
+		encMess.aesKey = make([]byte, encMess.keySize)
+		encMess.generateRandomKeyandIV()
 	}
 
 	return nil

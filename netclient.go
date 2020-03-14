@@ -468,7 +468,6 @@ func (netClient *NetClient) SendFile(file *os.File) error {
 		}
 
 		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
-		sendBytes += read
 		conn.Write(sendBuffer)
 	}
 
