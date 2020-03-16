@@ -7,3 +7,6 @@ Files should be encrypted using symmetric alghorytms because this method is much
 
 ## Requirements
 `go get -u golang.org/x/crypto/...`
+`go get -v -t -d ./...`
+`go get github.com/gotk3/gotk3/gtk`
+`go install -tags gtk_X_XX github.com/gotk3/gotk3/gtk`
