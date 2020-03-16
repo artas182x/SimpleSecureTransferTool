@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -54,8 +56,36 @@ func main() {
 	println(decrypted2)*/
 
 	// exampleNetclient()
-	RunGUI()
-
+	consoleModeFlag := flag.Bool("console", false, "Should app run in console mode")
+	portFlag := flag.Int("port", 27002, "Port on which app should listen")
+	flag.Parse()
+	reader := bufio.NewReader(os.Stdin)
+	if *consoleModeFlag {
+		fmt.Print("Password: ")
+		os.MkdirAll("client", os.ModePerm)
+		password, _ := reader.ReadString('\n')
+		encryptor := EncryptedMessageHandler(32, ECB)
+		err := encryptor.LoadKeys("client", password)
+		if err != nil {
+			if os.IsNotExist(err) {
+				fmt.Println("No keypair available. Creating one")
+				if err = encryptor.CreateKeys("client", password); err != nil {
+					fmt.Println(err.Error())
+					return
+				}
+			}
+		}
+		netClient := NetClientInit(int32(*portFlag), encryptor)
+		go netClient.NetclientListen()
+		for true {
+			fmt.Print("Type message: ")
+			message, _ := reader.ReadString('\n')
+			netClient.SendTextMessage(message)
+		}
+	} else {
+		app := GUIAppNew(int32(*portFlag))
+		app.RunGUI()
+	}
 }
 
 //Example of started 2 clients on different ports. Normally one computer should have one client started. This is test case.

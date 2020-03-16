@@ -2,10 +2,24 @@ package main
 
 import (
 	"os"
-	"strconv"
 
 	"github.com/gotk3/gotk3/gtk"
 )
+
+//GUIApp is structure used for running gui of application and handling messages
+type GUIApp struct {
+	textBuffer *gtk.EntryBuffer
+	enryptor   EncMess
+	netClient  NetClient
+}
+
+//GUIAppNew return new instance of application
+func GUIAppNew(port int32) (app GUIApp) {
+	app.enryptor = EncryptedMessageHandler(32, CBC)
+	app.netClient = NetClientInit(port, app.enryptor)
+	go app.netClient.NetclientListen()
+	return
+}
 
 func initWindow(title string) (window *gtk.Window) {
 	gtk.Init(nil)
@@ -80,7 +94,24 @@ func getLoginLayout(loginCallback func()) *gtk.Grid {
 		layout.Destroy()
 		loginCallback()
 	}
-	return getPasswordLayout("Login", callback)
+	passwordLayout := getPasswordLayout("Login", callback)
+	newKeysCallback := func(button *gtk.Button) {
+		encryptor := EncryptedMessageHandler(32, CBC)
+		os.RemoveAll("config")
+		passwordBox, _ := passwordLayout.GetChildAt(1, 2)
+		password, _ := passwordBox.GetProperty("text")
+		os.MkdirAll("config", os.ModePerm)
+		err := encryptor.CreateKeys("config", string(password.(string)))
+		if err != nil {
+			println(err.Error())
+		} else {
+			passwordLayout.Destroy()
+			loginCallback()
+		}
+	}
+	newKeysButton := getButton("Generate new keys", newKeysCallback)
+	passwordLayout.Attach(newKeysButton, 0, 4, 2, 1)
+	return passwordLayout
 }
 
 func getRegisterLayout(registerCallback func()) *gtk.Grid {
@@ -109,15 +140,13 @@ func getConnectLayout(callback func(string)) *gtk.Grid {
 	addressCallback := func(textBox *gtk.Entry) {
 		text, _ := textBox.GetText()
 		callback(text)
-		layout.Destroy()
 	}
 	addressBox := getTextBox(addressCallback)
 	enterCallback := func(button *gtk.Button) {
 		text, _ := addressBox.GetText()
 		callback(text)
-		layout.Destroy()
 	}
-	enterButton := getButton("Enter", enterCallback)
+	enterButton := getButton("Connect", enterCallback)
 	layout.Attach(titleLabel, 0, 0, 1, 1)
 	layout.Attach(addressBox, 1, 0, 1, 1)
 	layout.Attach(enterButton, 0, 1, 2, 1)
@@ -126,7 +155,7 @@ func getConnectLayout(callback func(string)) *gtk.Grid {
 
 func getBlockCipherLayout(cipherChoosenCallback func(string)) *gtk.Grid {
 	layout := getGridLayout()
-	// titleLabel, _ := gtk.LabelNew("Choose ")
+	titleLabel, _ := gtk.LabelNew("Choose algorithm: ")
 	choices := [4]string{"ECB", "CBC", "CFB", "OFB"}
 	choicesBox, _ := gtk.ComboBoxTextNew()
 	for i := 0; i < len(choices); i++ {
@@ -134,42 +163,114 @@ func getBlockCipherLayout(cipherChoosenCallback func(string)) *gtk.Grid {
 	}
 	choicesBox.SetActive(0)
 	selectButton := getButton("Select", func(button *gtk.Button) {
-		layout.Destroy()
 		cipherChoosenCallback(choicesBox.GetActiveText())
 	})
-	layout.Add(choicesBox)
-	layout.Add(selectButton)
+	layout.Attach(titleLabel, 0, 0, 2, 1)
+	layout.Attach(choicesBox, 0, 1, 1, 1)
+	layout.Attach(selectButton, 1, 1, 1, 1)
 	return layout
 }
 
-// func getTextAppLayout() *gtk.G
+func getMessagesLayout(textWrittenCallback func(text string)) *gtk.Grid {
+	scrolledWindow, _ := gtk.ScrolledWindowNew(nil, nil)
+	scrolledWindow.SetSizeRequest(1920/4, 1080/3)
+	layout := getGridLayout()
+	textTagTable, _ := gtk.TextTagTableNew()
+	textBuffer, _ := gtk.TextBufferNew(textTagTable)
+	textView, _ := gtk.TextViewNewWithBuffer(textBuffer)
+	textView.SetEditable(false)
+	textView.SetCanFocus(false)
+	textView.SetWrapMode(gtk.WrapMode(1))
+	iter := textBuffer.GetEndIter()
+	titleLabel, _ := gtk.LabelNew("Messages: ")
+	textBoxCallback := func(textBox *gtk.Entry) {
+		text, _ := textBox.GetText()
+		textBuffer.Insert(iter, "You: "+text+"\n")
+		textBox.SetText("")
+		textWrittenCallback(text)
+	}
+	textInput := getTextBox(textBoxCallback)
+	promptLabel, _ := gtk.LabelNew("Write message: ")
+	enterButtonCallback := func(button *gtk.Button) {
+		text, _ := textInput.GetText()
+		textBuffer.Insert(iter, "You: "+text+"\n")
+		textInput.SetText("")
+		textWrittenCallback(text)
+	}
+	enterButton := getButton("Send", enterButtonCallback)
+	scrolledWindow.Add(textView)
+	layout.Attach(titleLabel, 0, 0, 3, 1)
+	layout.Attach(scrolledWindow, 0, 1, 3, 1)
+	layout.Attach(promptLabel, 0, 2, 1, 1)
+	layout.Attach(textInput, 1, 2, 1, 1)
+	layout.Attach(enterButton, 2, 2, 1, 1)
+	return layout
+}
+
+func getConfigLayout(cipherChoosenCallback func(string), addressChoosenCallback func(string)) (*gtk.Grid, *gtk.Label) {
+	layout := getGridLayout()
+	addressLayout := getConnectLayout(addressChoosenCallback)
+	cipherLayout := getBlockCipherLayout(cipherChoosenCallback)
+	connectedLabel, _ := gtk.LabelNew("Connected: ")
+	statusLabel, _ := gtk.LabelNew("No")
+	separator, _ := gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
+	layout.Attach(connectedLabel, 0, 0, 1, 1)
+	layout.Attach(statusLabel, 1, 0, 1, 1)
+	layout.Attach(separator, 0, 1, 2, 1)
+	layout.Attach(addressLayout, 0, 2, 2, 1)
+	layout.Attach(separator, 0, 3, 2, 1)
+	layout.Attach(cipherLayout, 0, 4, 2, 1)
+	return layout, statusLabel
+}
 
 //RunGUI starts gui of the application
-func RunGUI() {
+func (app *GUIApp) RunGUI() {
 	window := initWindow("SimpleSecureTransferTool")
 	window.SetDefaultSize(1920/2, 1080/2)
+	var connectionStatusLabel *gtk.Label = nil
 	mainLayout := getGridLayout()
-	addressChoosenCallback := func(address string) {
-		println(address)
-		textTagTable, _ := gtk.TextTagTableNew()
-		textBuffer, _ := gtk.TextBufferNew(textTagTable)
-		textView, _ := gtk.TextViewNewWithBuffer(textBuffer)
-		textView.SetEditable(false)
-		iter := textBuffer.GetEndIter()
-		for i := 0; i < 5; i++ {
-			textBuffer.Insert(iter, "Test"+strconv.Itoa(i)+"\n")
+	cipherChoosenCallback := func(cipher string) {
+		switch cipher {
+		case "ECB":
+			app.enryptor.cipherMode = ECB
+			break
+		case "CBC":
+			app.enryptor.cipherMode = CBC
+			break
+		case "CFB":
+			app.enryptor.cipherMode = CFB
+			break
+		case "OFB":
+			app.enryptor.cipherMode = OFB
+			break
 		}
-		pane, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
-		pane.Pack1(textView, true, true)
-		label, _ := gtk.LabelNew("AAAAAAAAAAA")
-		pane.Pack2(label, true, true)
-		mainLayout.Add(pane)
-		window.ShowAll()
+		app.netClient.SendConnectionProperties()
+		println("Sending new cipher: ", cipher)
+	}
+	messageWrittenCallback := func(message string) {
+		app.netClient.SendTextMessage(message)
+		println("sending message: ", message)
+	}
+	addressChoosenCallback := func(address string) {
+		err := app.netClient.SendHello(address)
+		if err != nil {
+			println("not connected")
+			app.netClient.connected = false
+			connectionStatusLabel.SetText("No")
+		} else {
+			println("connected")
+			app.netClient.connected = true
+			connectionStatusLabel.SetText("Yes")
+		}
 	}
 	passwordCallback := func() {
-		println("Logged in")
-		// mainLayout.Add(getBlockCipherLayout(blockCipherChoosenCallback))
-		mainLayout.Add(getConnectLayout(addressChoosenCallback))
+		pane, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
+		leftLayout := getMessagesLayout(messageWrittenCallback)
+		pane.Pack1(leftLayout, true, true)
+		rightLayout, statusLabel := getConfigLayout(cipherChoosenCallback, addressChoosenCallback)
+		connectionStatusLabel = statusLabel
+		pane.Pack2(rightLayout, true, true)
+		mainLayout.Add(pane)
 		window.ShowAll()
 	}
 	if isPasswordSet() {

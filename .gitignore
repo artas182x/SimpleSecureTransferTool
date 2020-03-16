@@ -24,3 +24,5 @@
 test/*
 *.encrypted
 config/*
+SimpleSecureTransferTool
+client/*
