@@ -4,11 +4,11 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 
-	"./pem"
+	"./remotes/pem"
 
-	"./x509"
+	"./remotes/x509"
 
-	"./rsa"
+	"./remotes/rsa"
 )
 
 //GenerateKeyPair is used for generating private and public key

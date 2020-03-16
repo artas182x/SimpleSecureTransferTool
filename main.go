@@ -53,7 +53,8 @@ func main() {
 
 	println(decrypted2)*/
 
-	exampleNetclient()
+	// exampleNetclient()
+	RunGUI()
 
 }
 

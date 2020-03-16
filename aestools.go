@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"./aesciphers"
+	"./remotes/aesciphers"
 )
 
 //cipherblockmode represents Cipher Block Mode used for encryption/decryption
