@@ -58,6 +58,7 @@ func main() {
 	// exampleNetclient()
 	consoleModeFlag := flag.Bool("console", false, "Should app run in console mode")
 	portFlag := flag.Int("port", 27002, "Port on which app should listen")
+	connectAddr := flag.String("connect", "", "Address to which app should connect on start")
 	flag.Parse()
 	reader := bufio.NewReader(os.Stdin)
 	if *consoleModeFlag {
@@ -76,7 +77,11 @@ func main() {
 			}
 		}
 		netClient := NetClientInit(int32(*portFlag), encryptor)
-		go netClient.NetclientListen()
+		var nullGuiApp GUIApp
+		go netClient.NetClientListen(&nullGuiApp)
+		if *connectAddr != "" {
+			netClient.SendHello(*connectAddr)
+		}
 		for true {
 			fmt.Print("Type message: ")
 			message, _ := reader.ReadString('\n')
@@ -131,9 +136,9 @@ func exampleNetclient() {
 	}
 
 	netClient2 := NetClientInit(27002, encMess2)
-
-	go netClient.NetclientListen()
-	go netClient2.NetclientListen()
+	var nullGuiApp GUIApp
+	go netClient.NetClientListen(&nullGuiApp)
+	go netClient2.NetClientListen(&nullGuiApp)
 
 	for i := 0; i < 10; i++ {
 		time.Sleep(1000)
@@ -150,7 +155,7 @@ func exampleNetclient() {
 
 	netClient2.receiveDir = "test"
 	file, _ := os.Open("README.md")
-	netClient.SendFile(file)
+	netClient.SendFile(file, &nullGuiApp)
 
 	if netClient.Ping() {
 		fmt.Println("Ping successful")

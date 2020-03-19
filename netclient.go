@@ -48,12 +48,22 @@ func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
 	netClient.SetClientState(false)
 	netClient.messageHandler = encMess
 	netClient.listenport = listenPort
-	netClient.receiveDir = ""
+	netClient.receiveDir = "."
 	return
 }
 
-//NetclientListen is main function for receiving connection. It's recommended to run it in separate thread
-func (netClient *NetClient) NetclientListen() {
+//SetCipher sets cipher
+func (netClient *NetClient) SetCipher(cipher cipherblockmode) {
+	netClient.messageHandler.cipherMode = cipher
+}
+
+//GetCipher gets cipher
+func (netClient *NetClient) GetCipher() cipherblockmode {
+	return netClient.messageHandler.cipherMode
+}
+
+//NetClientListen is main function for receiving connection. It's recommended to run it in separate thread
+func (netClient *NetClient) NetClientListen(app *GUIApp) {
 	connection, err := net.Listen("tcp", fmt.Sprintf(":%d", netClient.listenport))
 	if err != nil {
 		panic(err)
@@ -87,12 +97,12 @@ func (netClient *NetClient) NetclientListen() {
 			continue
 		}
 
-		go netClient.handleIncomingConnection(c)
+		go netClient.handleIncomingConnection(c, app)
 
 	}
 }
 
-func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
+func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 
 	reader := bufio.NewReader(c)
 	netData, err := reader.ReadByte()
@@ -135,7 +145,8 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
 
 			fmt.Printf("Received hello from: IP: %s PubKey Hash: %s\n", netClient.remoteIP, hex.EncodeToString(hash[:]))
-
+			app.SetConnected(true)
+			app.ChangeAddress(netClient.remoteIP)
 			if err := netClient.SendHelloResponse(); err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -186,7 +197,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 	case CONNECTIONPROPERTIES:
 		if netClient.connected {
 			reader.Read(buffer)
-			err = netClient.messageHandler.HandleConnectionProperties(buffer)
+			err = netClient.messageHandler.HandleConnectionProperties(buffer, app)
 			if err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -199,7 +210,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn) {
 	case TEXTMESSAGE:
 		if netClient.connected {
 			//	reader.Read(buffer)
-			err = netClient.messageHandler.HandleTextMessage(reader)
+			err = netClient.messageHandler.HandleTextMessage(reader, app)
 			if err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -404,7 +415,7 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 }
 
 //SendFile sends encrypted file using AES
-func (netClient *NetClient) SendFile(file *os.File) error {
+func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	randFileName := randString(10)
 	var fileEncrypted *os.File
 	var err error

@@ -10,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -51,7 +52,7 @@ func EncryptedMessageHandler(keySize int32, cipher cipherblockmode) (encMess Enc
 //  Schema of frame
 // |alghorytm byte|keysize int32|blocksize int32|ciphermode byte|aesKey [keysize]byte|IV (if exists) [blocksize]byte|
 //
-func (encMess *EncMess) HandleConnectionProperties(props []byte) error {
+func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) error {
 
 	var decrypted []byte
 	var err error
@@ -92,6 +93,8 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte) error {
 		}
 	}
 
+	app.UpdateCipherMode()
+
 	return nil
 }
 
@@ -119,7 +122,7 @@ func (encMess *EncMess) HandleReceivedPublicKey(key []byte) error {
 }
 
 //HandleTextMessage reader message from buffer and decrypts it
-func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader) error {
+func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) error {
 
 	var err error
 	var decrypted string
@@ -141,7 +144,13 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader) error {
 
 	//TEST PRINTLN TODO GUI
 	fmt.Printf("Received message: %s\n", decrypted)
-
+	if app.textIter != nil {
+		suffix := ""
+		if !strings.HasSuffix(decrypted, "\n"){
+			suffix = "\n"
+		}
+		app.ShowMessage(decrypted + suffix)
+	}
 	return nil
 
 }

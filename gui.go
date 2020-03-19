@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -8,16 +9,21 @@ import (
 
 //GUIApp is structure used for running gui of application and handling messages
 type GUIApp struct {
-	textBuffer *gtk.EntryBuffer
-	enryptor   EncMess
-	netClient  NetClient
+	textBuffer            *gtk.TextBuffer
+	textIter              *gtk.TextIter
+	connectionStatusLabel *gtk.Label
+	cipherChoiceBox       *gtk.ComboBoxText
+	addressBox            *gtk.Entry
+	progressBar           *gtk.ProgressBar
+	newFileLabel          *gtk.Label
+	port                  int32
+	encryptor             EncMess
+	netClient             NetClient
 }
 
 //GUIAppNew return new instance of application
 func GUIAppNew(port int32) (app GUIApp) {
-	app.enryptor = EncryptedMessageHandler(32, CBC)
-	app.netClient = NetClientInit(port, app.enryptor)
-	go app.netClient.NetclientListen()
+	app.port = port
 	return
 }
 
@@ -87,12 +93,12 @@ func isPasswordSet() bool {
 	return !os.IsNotExist(err)
 }
 
-func getLoginLayout(loginCallback func()) *gtk.Grid {
+func getLoginLayout(loginCallback func(EncMess)) *gtk.Grid {
 	callback := func(password string, layout *gtk.Grid, errorLabel *gtk.Label) {
 		encryptor := EncryptedMessageHandler(32, CBC)
 		encryptor.LoadKeys("config", password)
 		layout.Destroy()
-		loginCallback()
+		loginCallback(encryptor)
 	}
 	passwordLayout := getPasswordLayout("Login", callback)
 	newKeysCallback := func(button *gtk.Button) {
@@ -106,7 +112,7 @@ func getLoginLayout(loginCallback func()) *gtk.Grid {
 			println(err.Error())
 		} else {
 			passwordLayout.Destroy()
-			loginCallback()
+			loginCallback(encryptor)
 		}
 	}
 	newKeysButton := getButton("Generate new keys", newKeysCallback)
@@ -114,7 +120,7 @@ func getLoginLayout(loginCallback func()) *gtk.Grid {
 	return passwordLayout
 }
 
-func getRegisterLayout(registerCallback func()) *gtk.Grid {
+func getRegisterLayout(registerCallback func(mess EncMess)) *gtk.Grid {
 	callback := func(password string, layout *gtk.Grid, errorLabel *gtk.Label) {
 		if len(password) <= 0 {
 			errorLabel.SetMarkup("<span foreground='red'>Password must be longer than 0</span>")
@@ -127,14 +133,14 @@ func getRegisterLayout(registerCallback func()) *gtk.Grid {
 				println(err.Error())
 			} else {
 				layout.Destroy()
-				registerCallback()
+				registerCallback(encryptor)
 			}
 		}
 	}
 	return getPasswordLayout("Enter new password", callback)
 }
 
-func getConnectLayout(callback func(string)) *gtk.Grid {
+func getConnectLayout(callback func(string)) (*gtk.Grid, *gtk.Entry) {
 	layout := getGridLayout()
 	titleLabel, _ := gtk.LabelNew("Targets IP address: ")
 	addressCallback := func(textBox *gtk.Entry) {
@@ -150,10 +156,10 @@ func getConnectLayout(callback func(string)) *gtk.Grid {
 	layout.Attach(titleLabel, 0, 0, 1, 1)
 	layout.Attach(addressBox, 1, 0, 1, 1)
 	layout.Attach(enterButton, 0, 1, 2, 1)
-	return layout
+	return layout, addressBox
 }
 
-func getBlockCipherLayout(cipherChoosenCallback func(string)) *gtk.Grid {
+func getBlockCipherLayout(cipherChosenCallback func(string)) (*gtk.Grid, *gtk.ComboBoxText) {
 	layout := getGridLayout()
 	titleLabel, _ := gtk.LabelNew("Choose algorithm: ")
 	choices := [4]string{"ECB", "CBC", "CFB", "OFB"}
@@ -161,17 +167,43 @@ func getBlockCipherLayout(cipherChoosenCallback func(string)) *gtk.Grid {
 	for i := 0; i < len(choices); i++ {
 		choicesBox.AppendText(choices[i])
 	}
-	choicesBox.SetActive(0)
+	choicesBox.SetActive(1)
 	selectButton := getButton("Select", func(button *gtk.Button) {
-		cipherChoosenCallback(choicesBox.GetActiveText())
+		cipherChosenCallback(choicesBox.GetActiveText())
 	})
 	layout.Attach(titleLabel, 0, 0, 2, 1)
 	layout.Attach(choicesBox, 0, 1, 1, 1)
 	layout.Attach(selectButton, 1, 1, 1, 1)
-	return layout
+	return layout, choicesBox
 }
 
-func getMessagesLayout(textWrittenCallback func(text string)) *gtk.Grid {
+func getFileTransferLayout(window *gtk.Window, sendButtonPressedCallback func(*gtk.FileChooserNativeDialog)) (*gtk.Grid, *gtk.ProgressBar, *gtk.Label) {
+	layout := getGridLayout()
+	titleLabel, _ := gtk.LabelNew("Send File: ")
+	progressBar, _ := gtk.ProgressBarNew()
+	styleContext, _ := progressBar.GetStyleContext()
+	mRefProvider, _ := gtk.CssProviderNew()
+	if err := mRefProvider.LoadFromPath("styles.css"); err != nil {
+		log.Println(err)
+	}
+	styleContext.AddProvider(mRefProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+	filePicker, _ := gtk.FileChooserNativeDialogNew("Test", window, gtk.FILE_CHOOSER_ACTION_OPEN, "Send", "Cancel")
+	chooseFileButtonPressedCallback := func(button *gtk.Button) {
+		filePicker.Run()
+	}
+	chooseFileButton := getButton("Choose File", chooseFileButtonPressedCallback)
+	newFileLabel, _ := gtk.LabelNew("")
+	sendFileButton := getButton("Send", func(button *gtk.Button) {
+		sendButtonPressedCallback(filePicker)
+	})
+	layout.Attach(titleLabel, 0, 0, 2, 1)
+	layout.Attach(chooseFileButton, 0, 1, 2, 1)
+	layout.Attach(progressBar, 0, 2, 1, 1)
+	layout.Attach(sendFileButton, 1, 2, 1, 1)
+	return layout, progressBar, newFileLabel
+}
+
+func getMessagesLayout(textWrittenCallback func(text string)) (*gtk.Grid, *gtk.TextBuffer, *gtk.TextIter) {
 	scrolledWindow, _ := gtk.ScrolledWindowNew(nil, nil)
 	scrolledWindow.SetSizeRequest(1920/4, 1080/3)
 	layout := getGridLayout()
@@ -204,71 +236,125 @@ func getMessagesLayout(textWrittenCallback func(text string)) *gtk.Grid {
 	layout.Attach(promptLabel, 0, 2, 1, 1)
 	layout.Attach(textInput, 1, 2, 1, 1)
 	layout.Attach(enterButton, 2, 2, 1, 1)
-	return layout
+	return layout, textBuffer, iter
 }
 
-func getConfigLayout(cipherChoosenCallback func(string), addressChoosenCallback func(string)) (*gtk.Grid, *gtk.Label) {
+func getConfigLayout(cipherChosenCallback func(string), addressChosenCallback func(string), window *gtk.Window, sendFileCallback func(dialog *gtk.FileChooserNativeDialog)) (*gtk.Grid, *gtk.Label, *gtk.Entry, *gtk.ComboBoxText) {
 	layout := getGridLayout()
-	addressLayout := getConnectLayout(addressChoosenCallback)
-	cipherLayout := getBlockCipherLayout(cipherChoosenCallback)
+	addressLayout, addressTextBox := getConnectLayout(addressChosenCallback)
+	cipherLayout, cipherChoiceBox := getBlockCipherLayout(cipherChosenCallback)
 	connectedLabel, _ := gtk.LabelNew("Connected: ")
 	statusLabel, _ := gtk.LabelNew("No")
 	separator, _ := gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
+	fileTransferLayout, _, _ := getFileTransferLayout(window, sendFileCallback)
 	layout.Attach(connectedLabel, 0, 0, 1, 1)
 	layout.Attach(statusLabel, 1, 0, 1, 1)
 	layout.Attach(separator, 0, 1, 2, 1)
 	layout.Attach(addressLayout, 0, 2, 2, 1)
 	layout.Attach(separator, 0, 3, 2, 1)
 	layout.Attach(cipherLayout, 0, 4, 2, 1)
-	return layout, statusLabel
+	layout.Attach(separator, 0, 5, 2, 1)
+	layout.Attach(fileTransferLayout, 0, 6, 2, 2)
+	return layout, statusLabel, addressTextBox, cipherChoiceBox
+}
+
+func showErrorPopup(window *gtk.Window, err error) {
+	popup := gtk.MessageDialogNew(window, 0, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, err.Error())
+	popup.Run()
+}
+
+func (app *GUIApp) UpdateCipherMode() {
+	app.cipherChoiceBox.SetActive(int(app.netClient.GetCipher()))
+}
+
+//ShowMessage shows user message in the messaging box
+func (app *GUIApp) ShowMessage(message string) {
+	app.textBuffer.Insert(app.textIter, "Friend: "+message)
+}
+
+//ChangeAddress sets showed address to value
+func (app *GUIApp) ChangeAddress(address string) {
+	app.addressBox.SetText(address)
+}
+
+//SetConnected sets label to Yes if given true
+func (app *GUIApp) SetConnected(connected bool) {
+	if connected {
+		app.connectionStatusLabel.SetText("Yes")
+	} else {
+		app.connectionStatusLabel.SetText("No")
+	}
 }
 
 //RunGUI starts gui of the application
 func (app *GUIApp) RunGUI() {
 	window := initWindow("SimpleSecureTransferTool")
 	window.SetDefaultSize(1920/2, 1080/2)
-	var connectionStatusLabel *gtk.Label = nil
 	mainLayout := getGridLayout()
-	cipherChoosenCallback := func(cipher string) {
+	cipherChosenCallback := func(cipher string) {
 		switch cipher {
 		case "ECB":
-			app.enryptor.cipherMode = ECB
+			app.netClient.SetCipher(ECB)
 			break
 		case "CBC":
-			app.enryptor.cipherMode = CBC
+			app.netClient.SetCipher(CBC)
 			break
 		case "CFB":
-			app.enryptor.cipherMode = CFB
+			app.netClient.SetCipher(CFB)
 			break
 		case "OFB":
-			app.enryptor.cipherMode = OFB
+			app.netClient.SetCipher(OFB)
 			break
 		}
-		app.netClient.SendConnectionProperties()
+		err := app.netClient.SendConnectionProperties()
+		if err != nil {
+			println(err.Error())
+		}
 		println("Sending new cipher: ", cipher)
 	}
 	messageWrittenCallback := func(message string) {
-		app.netClient.SendTextMessage(message)
+		err := app.netClient.SendTextMessage(message)
+		if err != nil {
+			println(err.Error())
+		}
 		println("sending message: ", message)
 	}
-	addressChoosenCallback := func(address string) {
+	addressChosenCallback := func(address string) {
 		err := app.netClient.SendHello(address)
 		if err != nil {
 			println("not connected")
 			app.netClient.connected = false
-			connectionStatusLabel.SetText("No")
+			app.connectionStatusLabel.SetText("No")
 		} else {
 			println("connected")
 			app.netClient.connected = true
-			connectionStatusLabel.SetText("Yes")
+			app.connectionStatusLabel.SetText("Yes")
 		}
 	}
-	passwordCallback := func() {
+	passwordCallback := func(encryptor EncMess) {
+		leftLayout, textBuffer, textIter := getMessagesLayout(messageWrittenCallback)
+		app.textBuffer = textBuffer
+		app.textIter = textIter
+		app.encryptor = encryptor
+		app.netClient = NetClientInit(app.port, app.encryptor)
+		go app.netClient.NetClientListen(app)
 		pane, _ := gtk.PanedNew(gtk.ORIENTATION_HORIZONTAL)
-		leftLayout := getMessagesLayout(messageWrittenCallback)
 		pane.Pack1(leftLayout, true, true)
-		rightLayout, statusLabel := getConfigLayout(cipherChoosenCallback, addressChoosenCallback)
-		connectionStatusLabel = statusLabel
+		sendFileCallback := func(dialog *gtk.FileChooserNativeDialog) {
+			file, err := os.Open(dialog.GetFilename())
+			if err != nil {
+				showErrorPopup(window, err)
+			} else {
+				err := app.netClient.SendFile(file, app)
+				if err != nil {
+					showErrorPopup(window, err)
+				}
+			}
+		}
+		rightLayout, statusLabel, addressBox, cipherChoiceBox := getConfigLayout(cipherChosenCallback, addressChosenCallback, window, sendFileCallback)
+		app.connectionStatusLabel = statusLabel
+		app.addressBox = addressBox
+		app.cipherChoiceBox = cipherChoiceBox
 		pane.Pack2(rightLayout, true, true)
 		mainLayout.Add(pane)
 		window.ShowAll()

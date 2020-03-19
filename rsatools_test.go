@@ -12,7 +12,7 @@ func TestRSAEncryption(t *testing.T) {
 		t.Error(err)
 	}
 
-	testbyte := []byte("Test text to encrypt")
+	testbyte := []byte("Test text to encryptor")
 
 	result, err := EncryptRSA(testbyte, pubkey)
 
@@ -32,7 +32,7 @@ func TestRSAEncryption(t *testing.T) {
 }
 
 func TestRandomness(t *testing.T) {
-	testbyte := []byte("Test text to encrypt")
+	testbyte := []byte("Test text to encryptor")
 
 	_, pubkey, err := GenerateKeyPair(4096)
 
