@@ -92,17 +92,17 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 			//return err
 		}
 	}
-
-	//Wrong connection properties - assume defaults - don't throw error, it's project requirement
-	if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
-		encMess.keySize = 32
-		encMess.blockSize = aes.BlockSize
-		encMess.cipherMode = 0
-		encMess.alghorytm = 0
-		encMess.iv = make([]byte, encMess.blockSize)
-		encMess.aesKey = make([]byte, encMess.keySize)
-		encMess.generateRandomKeyandIV()
-	}
+	//ARTUR
+	////Wrong connection properties - assume defaults - don't throw error, it's project requirement
+	//if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
+	//	encMess.keySize = 32
+	//	encMess.blockSize = aes.BlockSize
+	//	encMess.cipherMode = 0
+	//	encMess.alghorytm = 0
+	//	encMess.iv = make([]byte, encMess.blockSize)
+	//	encMess.aesKey = make([]byte, encMess.keySize)
+	//	encMess.generateRandomKeyandIV()
+	//}
 
 	app.UpdateCipherMode()
 

@@ -187,7 +187,7 @@ func getFileTransferLayout(window *gtk.Window, sendButtonPressedCallback func(*g
 		log.Println(err)
 	}
 	styleContext.AddProvider(mRefProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
-	filePicker, _ := gtk.FileChooserNativeDialogNew("Test", window, gtk.FILE_CHOOSER_ACTION_OPEN, "Send", "Cancel")
+	filePicker, _ := gtk.FileChooserNativeDialogNew("Choose file to send", window, gtk.FILE_CHOOSER_ACTION_OPEN, "Accept", "Cancel")
 	chooseFileButtonPressedCallback := func(button *gtk.Button) {
 		filePicker.Run()
 	}
@@ -239,14 +239,14 @@ func getMessagesLayout(textWrittenCallback func(text string)) (*gtk.Grid, *gtk.T
 	return layout, textBuffer, iter
 }
 
-func getConfigLayout(cipherChosenCallback func(string), addressChosenCallback func(string), window *gtk.Window, sendFileCallback func(dialog *gtk.FileChooserNativeDialog)) (*gtk.Grid, *gtk.Label, *gtk.Entry, *gtk.ComboBoxText) {
+func getConfigLayout(cipherChosenCallback func(string), addressChosenCallback func(string), window *gtk.Window, sendFileCallback func(dialog *gtk.FileChooserNativeDialog)) (*gtk.Grid, *gtk.Label, *gtk.Entry, *gtk.ComboBoxText, *gtk.ProgressBar) {
 	layout := getGridLayout()
 	addressLayout, addressTextBox := getConnectLayout(addressChosenCallback)
 	cipherLayout, cipherChoiceBox := getBlockCipherLayout(cipherChosenCallback)
 	connectedLabel, _ := gtk.LabelNew("Connected: ")
 	statusLabel, _ := gtk.LabelNew("No")
 	separator, _ := gtk.SeparatorNew(gtk.ORIENTATION_HORIZONTAL)
-	fileTransferLayout, _, _ := getFileTransferLayout(window, sendFileCallback)
+	fileTransferLayout, progressBar, _ := getFileTransferLayout(window, sendFileCallback)
 	layout.Attach(connectedLabel, 0, 0, 1, 1)
 	layout.Attach(statusLabel, 1, 0, 1, 1)
 	layout.Attach(separator, 0, 1, 2, 1)
@@ -255,14 +255,22 @@ func getConfigLayout(cipherChosenCallback func(string), addressChosenCallback fu
 	layout.Attach(cipherLayout, 0, 4, 2, 1)
 	layout.Attach(separator, 0, 5, 2, 1)
 	layout.Attach(fileTransferLayout, 0, 6, 2, 2)
-	return layout, statusLabel, addressTextBox, cipherChoiceBox
+	return layout, statusLabel, addressTextBox, cipherChoiceBox, progressBar
 }
 
 func showErrorPopup(window *gtk.Window, err error) {
 	popup := gtk.MessageDialogNew(window, 0, gtk.MESSAGE_ERROR, gtk.BUTTONS_OK, err.Error())
+	popup.Connect("response", func() {
+		popup.Destroy()
+	})
 	popup.Run()
 }
 
+func (app *GUIApp) UpdateUploadProgressBar(value float64) {
+	app.progressBar.SetFraction(value)
+}
+
+//UpdateCipherMode updates cipher mode choice box
 func (app *GUIApp) UpdateCipherMode() {
 	app.cipherChoiceBox.SetActive(int(app.netClient.GetCipher()))
 }
@@ -345,16 +353,14 @@ func (app *GUIApp) RunGUI() {
 			if err != nil {
 				showErrorPopup(window, err)
 			} else {
-				err := app.netClient.SendFile(file, app)
-				if err != nil {
-					showErrorPopup(window, err)
-				}
+				go app.netClient.SendFile(file, app)
 			}
 		}
-		rightLayout, statusLabel, addressBox, cipherChoiceBox := getConfigLayout(cipherChosenCallback, addressChosenCallback, window, sendFileCallback)
+		rightLayout, statusLabel, addressBox, cipherChoiceBox, progressBar := getConfigLayout(cipherChosenCallback, addressChosenCallback, window, sendFileCallback)
 		app.connectionStatusLabel = statusLabel
 		app.addressBox = addressBox
 		app.cipherChoiceBox = cipherChoiceBox
+		app.progressBar = progressBar
 		pane.Pack2(rightLayout, true, true)
 		mainLayout.Add(pane)
 		window.ShowAll()

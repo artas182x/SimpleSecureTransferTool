@@ -48,7 +48,7 @@ func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
 	netClient.SetClientState(false)
 	netClient.messageHandler = encMess
 	netClient.listenport = listenPort
-	netClient.receiveDir = "."
+	netClient.receiveDir = "./files/"
 	return
 }
 
@@ -479,6 +479,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 		}
 
 		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
+		app.UpdateUploadProgressBar(float64(sendBytes) / float64(stat2.Size()))
 		conn.Write(sendBuffer)
 	}
 
