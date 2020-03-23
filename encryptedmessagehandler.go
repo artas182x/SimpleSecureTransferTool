@@ -6,12 +6,14 @@ import (
 	"crypto/aes"
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const rsaSize = 4096 / 8
@@ -92,17 +94,16 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 			//return err
 		}
 	}
-	//ARTUR
-	////Wrong connection properties - assume defaults - don't throw error, it's project requirement
-	//if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
-	//	encMess.keySize = 32
-	//	encMess.blockSize = aes.BlockSize
-	//	encMess.cipherMode = 0
-	//	encMess.alghorytm = 0
-	//	encMess.iv = make([]byte, encMess.blockSize)
-	//	encMess.aesKey = make([]byte, encMess.keySize)
-	//	encMess.generateRandomKeyandIV()
-	//}
+	//Wrong connection properties - assume defaults - don't throw error, it's project requirement
+	if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
+		encMess.keySize = 32
+		encMess.blockSize = aes.BlockSize
+		encMess.cipherMode = 0
+		encMess.alghorytm = 0
+		encMess.iv = make([]byte, encMess.blockSize)
+		encMess.aesKey = make([]byte, encMess.keySize)
+		encMess.generateRandomKeyandIV()
+	}
 
 	app.UpdateCipherMode()
 
@@ -155,12 +156,16 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 
 	//TEST PRINTLN TODO GUI
 	fmt.Printf("Received message: %s\n", decrypted)
-	if app.textIter != nil {
+	if app.messageTextIter != nil {
 		suffix := ""
 		if !strings.HasSuffix(decrypted, "\n") {
 			suffix = "\n"
 		}
-		app.ShowMessage(decrypted + suffix)
+		if utf8.ValidString(decrypted) {
+			app.ShowMessage(decrypted + suffix)
+		} else {
+			app.ShowMessage(hex.EncodeToString([]byte(decrypted)) + suffix)
+		}
 	}
 	return nil
 

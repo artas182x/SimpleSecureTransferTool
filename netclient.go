@@ -14,6 +14,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const magicnumber uint32 = 0x1337ABCD
@@ -23,7 +24,7 @@ var endianness = binary.BigEndian
 
 type packettype byte
 
-//NetClient is structure representing netclient for receiving and sending tcp packets
+//NetClient is structure representing netClient for receiving and sending tcp packets
 type NetClient struct {
 	listenport     int32
 	connected      bool
@@ -43,7 +44,7 @@ const (
 	PING
 )
 
-//NetClientInit initializes netclient with listen port number
+//NetClientInit initializes netClient with listen port number
 func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
 	netClient.SetClientState(false)
 	netClient.messageHandler = encMess
@@ -353,7 +354,7 @@ func (netClient *NetClient) SendTextMessage(origText string) error {
 
 }
 
-//ReceiveFile decryps received file using AES
+//ReceiveFile decrypts received file using AES
 func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
@@ -471,6 +472,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 
 	sendBuffer := make([]byte, bufsize)
 	sendBytes := 0
+	startTime := time.Now()
 	for {
 		read, err := fileEncrypted.Read(sendBuffer)
 		sendBytes += read
@@ -479,7 +481,9 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 		}
 
 		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
-		app.UpdateUploadProgressBar(float64(sendBytes) / float64(stat2.Size()))
+		duration := time.Now().Sub(startTime)
+		println(duration.String())
+		app.UpdateUploadProgress(float64(sendBytes)/float64(stat2.Size()), duration.String())
 		conn.Write(sendBuffer)
 	}
 
@@ -499,8 +503,21 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 
 }
 
+//StartPinging sends Ping message every 2 seconds to check if client is still connected
+func (netClient *NetClient) StartPinging(app *GUIApp) {
+	for {
+		time.Sleep(2 * time.Second)
+		connected := netClient.Ping()
+		if !connected {
+			app.SetConnected(false)
+			app.netClient.connected = false
+			break
+		}
+	}
+}
+
 //Ping check if client is available. Return true if yes available
-//TODO GUI notidy if client disconnects
+//TODO GUI notify if client disconnects
 func (netClient *NetClient) Ping() bool {
 	response, err := netClient.send(nil, PING, netClient.remoteIP)
 	if err != nil {

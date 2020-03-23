@@ -27,3 +27,5 @@ config/*
 SimpleSecureTransferTool
 client/*
 .idea/*
+files/*
+!files/.keep
