@@ -1,8 +1,10 @@
 package main
 
 import (
-	"github.com/gotk3/gotk3/gtk"
 	"os"
+
+	"github.com/gotk3/gotk3/glib"
+	"github.com/gotk3/gotk3/gtk"
 )
 
 //GUIApp is structure used for running gui of application and handling messages
@@ -302,8 +304,10 @@ func (app *GUIApp) showErrorPopup(err error) {
 
 //UpdateUploadProgress updates progress bar
 func (app *GUIApp) UpdateUploadProgress(value float64, duration string) {
-	app.uploadProgressBar.SetFraction(value)
-	app.uploadTimeLabel.SetText(duration)
+	glib.IdleAdd(func() {
+		app.uploadProgressBar.SetFraction(value)
+		app.uploadTimeLabel.SetText(duration)
+	})
 }
 
 //UpdateCipherMode updates cipher mode choice box
