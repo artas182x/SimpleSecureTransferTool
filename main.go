@@ -60,6 +60,7 @@ func main() {
 	portFlag := flag.Int("port", 27002, "Port on which app should listen")
 	connectAddr := flag.String("connect", "", "Address to which app should connect on start")
 	flag.Parse()
+	var nullGuiApp GUIApp
 	reader := bufio.NewReader(os.Stdin)
 	if *consoleModeFlag {
 		fmt.Print("Password: ")
@@ -70,14 +71,14 @@ func main() {
 		if err != nil {
 			if os.IsNotExist(err) {
 				fmt.Println("No keypair available. Creating one")
-				if err = encryptor.CreateKeys("client", password); err != nil {
+				if err = encryptor.CreateKeys("client", password, &nullGuiApp); err != nil {
 					fmt.Println(err.Error())
 					return
 				}
 			}
 		}
 		netClient := NetClientInit(int32(*portFlag), encryptor)
-		var nullGuiApp GUIApp
+
 		go netClient.NetClientListen(&nullGuiApp)
 		if *connectAddr != "" {
 			netClient.SendHello(*connectAddr)
@@ -85,7 +86,7 @@ func main() {
 		for true {
 			fmt.Print("Type message: ")
 			message, _ := reader.ReadString('\n')
-			netClient.SendTextMessage(message)
+			netClient.SendTextMessage(message, &nullGuiApp)
 		}
 	} else {
 		app := GUIAppNew(int32(*portFlag))
@@ -99,13 +100,13 @@ func exampleNetclient() {
 	os.MkdirAll("test/client2", os.ModePerm)
 
 	encMess := EncryptedMessageHandler(32, ECB)
-
+	var nullGuiApp GUIApp
 	//Example of handling keys in gui
 	err := encMess.LoadKeys("test/client1", "123456")
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No keypair available. Creating one")
-			if err = encMess.CreateKeys("test/client1", "123456"); err != nil {
+			if err = encMess.CreateKeys("test/client1", "123456", &nullGuiApp); err != nil {
 				fmt.Println(err.Error())
 				return
 			}
@@ -124,7 +125,7 @@ func exampleNetclient() {
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No keypair available. Creating one")
-			if err = encMess2.CreateKeys("test/client2", "1234567"); err != nil {
+			if err = encMess2.CreateKeys("test/client2", "1234567", &nullGuiApp); err != nil {
 				fmt.Println(err.Error())
 				return
 			}
@@ -136,7 +137,7 @@ func exampleNetclient() {
 	}
 
 	netClient2 := NetClientInit(27002, encMess2)
-	var nullGuiApp GUIApp
+
 	go netClient.NetClientListen(&nullGuiApp)
 	go netClient2.NetClientListen(&nullGuiApp)
 
@@ -151,7 +152,7 @@ func exampleNetclient() {
 		//TODO IN GUI: Handle error, mark connection as disconnected
 	}
 
-	netClient.SendTextMessage("TEST")
+	netClient.SendTextMessage("TEST", &nullGuiApp)
 
 	netClient2.receiveDir = "test"
 	file, _ := os.Open("README.md")
@@ -178,8 +179,8 @@ func exampleFileEncryptionAndDecryption() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	err = EncryptFile(encMess.aesKey, encMess.iv, file, fileEncrypted, encMess.cipherMode)
+	var nullGuiApp GUIApp
+	err = EncryptFile(encMess.aesKey, encMess.iv, file, fileEncrypted, encMess.cipherMode, &nullGuiApp)
 	if err != nil {
 		log.Fatal(err)
 	}

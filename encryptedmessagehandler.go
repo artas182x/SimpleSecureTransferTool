@@ -209,8 +209,8 @@ func (encMess *EncMess) GenerateConnectionProperties() ([]byte, error) {
 }
 
 //GenerateTextMessage generates aes encrypted text byte array
-func (encMess *EncMess) GenerateTextMessage(origText string) ([]byte, error) {
-	encrypted, err := EncryptTextMessage(encMess.aesKey, encMess.iv, origText, encMess.cipherMode)
+func (encMess *EncMess) GenerateTextMessage(origText string, app *GUIApp) ([]byte, error) {
+	encrypted, err := EncryptTextMessage(encMess.aesKey, encMess.iv, origText, encMess.cipherMode, app)
 
 	if err != nil {
 		return nil, err
@@ -267,7 +267,7 @@ func (encMess *EncMess) LoadKeys(dir string, password string) (err error) {
 
 //CreateKeys - creates public and private keypair in given directory. Both files encrypted by AES-CBC using SHA-256 hash
 //TODO load create keys in GUI. If there are no key at first app startup they should be created
-func (encMess *EncMess) CreateKeys(dir string, password string) (err error) {
+func (encMess *EncMess) CreateKeys(dir string, password string, app *GUIApp) (err error) {
 
 	if encMess.myPrivateKey, encMess.myPublicKey, err = GenerateKeyPair(rsaSize * 8); err != nil {
 		return
@@ -298,13 +298,13 @@ func (encMess *EncMess) CreateKeys(dir string, password string) (err error) {
 
 	defer privKeyEncrypted.Close()
 
-	if err = encryptCBC(hash[:], iv, bReaderPriv, privKeyEncrypted, uint64(cap(encMess.myPrivateKey))); err != nil {
+	if err = encryptCBC(hash[:], iv, bReaderPriv, privKeyEncrypted, uint64(cap(encMess.myPrivateKey)), app); err != nil {
 		return err
 	}
 
 	defer pubKeyEncrypted.Close()
 
-	if err = encryptCBC(hash[:], iv, bReaderPub, pubKeyEncrypted, uint64(cap(encMess.myPublicKey))); err != nil {
+	if err = encryptCBC(hash[:], iv, bReaderPub, pubKeyEncrypted, uint64(cap(encMess.myPublicKey)), app); err != nil {
 		return err
 	}
 

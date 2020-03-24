@@ -182,7 +182,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 
 			fmt.Println("Received hello response")
-
+			app.SetConnected(true)
 			netClient.SetClientState(true)
 
 			err = netClient.SendConnectionProperties()
@@ -220,7 +220,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 		}
 	case FILE:
 		if netClient.connected {
-			err = netClient.ReceiveFile(reader)
+			err = netClient.ReceiveFile(reader, app)
 			if err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -337,8 +337,8 @@ func (netClient *NetClient) SendConnectionProperties() error {
 }
 
 //SendTextMessage send encrypted text message to other client
-func (netClient *NetClient) SendTextMessage(origText string) error {
-	toSend, err := netClient.messageHandler.GenerateTextMessage(origText)
+func (netClient *NetClient) SendTextMessage(origText string, app *GUIApp) error {
+	toSend, err := netClient.messageHandler.GenerateTextMessage(origText, app)
 
 	if err != nil {
 		return err
@@ -355,7 +355,7 @@ func (netClient *NetClient) SendTextMessage(origText string) error {
 }
 
 //ReceiveFile decrypts received file using AES
-func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
+func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error {
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
 
@@ -364,17 +364,17 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 
 	reader.Read(bufferFileName)
 	fileName := strings.Trim(string(bufferFileName), ":")
+	go app.ShowDownloadFilePopup(fileName)
 
 	newFile, err := os.Create(fileName + ".encrypted")
-
 	if err != nil {
 		return err
 	}
 	var receivedBytes int64
-
+	timeStart := time.Now()
 	for {
 		if (fileSize - receivedBytes) < bufsize {
-			io.CopyN(newFile, reader, (fileSize - receivedBytes))
+			io.CopyN(newFile, reader, fileSize-receivedBytes)
 			reader.Read(make([]byte, (receivedBytes+bufsize)-fileSize))
 			break
 		}
@@ -382,6 +382,9 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader) error {
 		receivedBytes += bufsize
 
 		fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
+		value := float64(receivedBytes) / float64(fileSize)
+		duration := time.Now().Sub(timeStart).String()
+		app.UpdateDownloadProgress(value, duration)
 	}
 
 	newFileDecrypted, err := os.Create(path.Join(netClient.receiveDir, fileName))
@@ -426,7 +429,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	}
 
 	if err := EncryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, file,
-		fileEncrypted, netClient.messageHandler.cipherMode); err != nil {
+		fileEncrypted, netClient.messageHandler.cipherMode, app); err != nil {
 		return err
 	}
 

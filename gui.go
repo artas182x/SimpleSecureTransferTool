@@ -31,7 +31,10 @@ type GUIApp struct {
 	encryptTimeLabel   *gtk.Label
 
 	//FileDownload Layout
-	newFileLabel *gtk.Label
+	downloadProgressBar *gtk.ProgressBar
+	downloadTimeLabel   *gtk.Label
+	decryptProgressBar  *gtk.ProgressBar
+	decryptTimeLabel    *gtk.Label
 
 	//NetClient
 	port      int32
@@ -68,7 +71,7 @@ func (app *GUIApp) getLoginLayout() *gtk.Grid {
 		passwordBox, _ := passwordLayout.GetChildAt(1, 2)
 		password, _ := passwordBox.GetProperty("text")
 		os.MkdirAll("config", os.ModePerm)
-		err := encryptor.CreateKeys("config", string(password.(string)))
+		err := encryptor.CreateKeys("config", string(password.(string)), app)
 		if err != nil {
 			println(err.Error())
 		} else {
@@ -89,7 +92,7 @@ func (app *GUIApp) getRegisterLayout() *gtk.Grid {
 			println("Registered: " + password)
 			os.MkdirAll("config", os.ModePerm)
 			encryptor := EncryptedMessageHandler(32, CBC)
-			err := encryptor.CreateKeys("config", password)
+			err := encryptor.CreateKeys("config", password, app)
 			if err != nil {
 				println(err.Error())
 			} else {
@@ -243,7 +246,7 @@ func (app *GUIApp) getConfigLayout() *gtk.Grid {
 }
 
 func (app *GUIApp) messageWrittenCallback(message string) {
-	err := app.netClient.SendTextMessage(message)
+	err := app.netClient.SendTextMessage(message, app)
 	if err != nil {
 		println(err.Error())
 	}
@@ -302,7 +305,54 @@ func (app *GUIApp) showErrorPopup(err error) {
 	popup.Run()
 }
 
-//UpdateUploadProgress updates progress bar
+func (app *GUIApp) ShowDownloadFilePopup(filename string) {
+	window, _ := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
+	window.SetTitle("Downloading File")
+	window.Connect("destroy", func() {
+		window.Destroy()
+	})
+	window.SetDefaultSize(1920/4, 1080/4)
+	window.SetPosition(gtk.WIN_POS_CENTER)
+	layout := getGridLayout()
+	decryptProgressLayout, decryptProgressBar, decryptTimeLabel := getProgressBarLayout("Decryption progress: ")
+	downloadProgressLayout, downloadProgressBar, downloadTimeLabel := getProgressBarLayout("Download progress: ")
+	filenameLabel, _ := gtk.LabelNew(filename)
+	layout.Attach(filenameLabel, 0, 0, 3, 1)
+	layout.Attach(decryptProgressLayout, 0, 1, 3, 1)
+	layout.Attach(downloadProgressLayout, 0, 2, 3, 1)
+	app.decryptProgressBar = decryptProgressBar
+	app.decryptTimeLabel = decryptTimeLabel
+	app.downloadProgressBar = downloadProgressBar
+	app.downloadTimeLabel = downloadTimeLabel
+	window.Add(layout)
+	window.ShowAll()
+}
+
+//UpdateDecryptionProgress updates decryption status
+func (app *GUIApp) UpdateDecryptionProgress(value float64, duration string) {
+	glib.IdleAdd(func() {
+		app.decryptProgressBar.SetFraction(value)
+		app.decryptTimeLabel.SetText(duration)
+	})
+}
+
+//UpdateDownloadProgress updates download status
+func (app *GUIApp) UpdateDownloadProgress(value float64, duration string) {
+	glib.IdleAdd(func() {
+		app.downloadProgressBar.SetFraction(value)
+		app.downloadTimeLabel.SetText(duration)
+	})
+}
+
+//UpdateEncryptionProgress updates encryption status
+func (app *GUIApp) UpdateEncryptionProgress(value float64, duration string) {
+	glib.IdleAdd(func() {
+		app.encryptProgressBar.SetFraction(value)
+		app.encryptTimeLabel.SetText(duration)
+	})
+}
+
+//UpdateUploadProgress updates upload status
 func (app *GUIApp) UpdateUploadProgress(value float64, duration string) {
 	glib.IdleAdd(func() {
 		app.uploadProgressBar.SetFraction(value)
