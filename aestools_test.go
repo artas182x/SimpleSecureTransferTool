@@ -13,14 +13,14 @@ func TestTextMessagesEncryptionECB(t *testing.T) {
 	var encrypted []byte
 	var decrypted string
 	var err error
-
+	var nullGuiApp GUIApp
 	iv := make([]byte, aes.BlockSize)
 
 	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if encrypted, err = EncryptTextMessage(key, iv, msg, ECB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, ECB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -44,14 +44,14 @@ func TestTextMessagesEncryptionCBC(t *testing.T) {
 	var encrypted []byte
 	var decrypted string
 	var err error
-
+	var nullGuiApp GUIApp
 	iv := make([]byte, aes.BlockSize)
 
 	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if encrypted, err = EncryptTextMessage(key, iv, msg, CBC); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, CBC, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -75,14 +75,14 @@ func TestTextMessagesEncryptionCFB(t *testing.T) {
 	var encrypted []byte
 	var decrypted string
 	var err error
-
+	var nullGuiApp GUIApp
 	iv := make([]byte, aes.BlockSize)
 
 	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if encrypted, err = EncryptTextMessage(key, iv, msg, CFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, CFB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -106,14 +106,14 @@ func TestTextMessagesEncryptionOFB(t *testing.T) {
 	var encrypted []byte
 	var decrypted string
 	var err error
-
+	var nullGuiApp GUIApp
 	iv := make([]byte, aes.BlockSize)
 
 	if err = GenerateIV(iv); err != nil {
 		t.Error(err)
 	}
 
-	if encrypted, err = EncryptTextMessage(key, iv, msg, OFB); err != nil {
+	if encrypted, err = EncryptTextMessage(key, iv, msg, OFB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 

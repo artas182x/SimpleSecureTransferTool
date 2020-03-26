@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/gotk3/gotk3/glib"
 	"io"
 	"net"
 	"os"
@@ -364,8 +365,9 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 
 	reader.Read(bufferFileName)
 	fileName := strings.Trim(string(bufferFileName), ":")
-	go app.ShowDownloadFilePopup(fileName)
-
+	glib.IdleAdd(func() {
+		app.ShowDownloadFilePopup(fileName)
+	})
 	newFile, err := os.Create(fileName + ".encrypted")
 	if err != nil {
 		return err
@@ -384,7 +386,9 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 		fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
 		value := float64(receivedBytes) / float64(fileSize)
 		duration := time.Now().Sub(timeStart).String()
-		app.UpdateDownloadProgress(value, duration)
+		glib.IdleAdd(func() {
+			app.UpdateDownloadProgress(value, duration)
+		})
 	}
 
 	newFileDecrypted, err := os.Create(path.Join(netClient.receiveDir, fileName))
