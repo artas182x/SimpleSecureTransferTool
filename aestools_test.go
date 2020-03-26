@@ -24,7 +24,7 @@ func TestTextMessagesEncryptionECB(t *testing.T) {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, iv, encrypted, ECB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, ECB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -55,7 +55,7 @@ func TestTextMessagesEncryptionCBC(t *testing.T) {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CBC); err != nil {
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CBC, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -86,7 +86,7 @@ func TestTextMessagesEncryptionCFB(t *testing.T) {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CFB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, CFB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
@@ -117,7 +117,7 @@ func TestTextMessagesEncryptionOFB(t *testing.T) {
 		t.Error(err)
 	}
 
-	if decrypted, err = DecryptTextMessage(key, iv, encrypted, OFB); err != nil {
+	if decrypted, err = DecryptTextMessage(key, iv, encrypted, OFB, &nullGuiApp); err != nil {
 		t.Error(err)
 	}
 
