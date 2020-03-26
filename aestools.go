@@ -7,6 +7,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
+	"github.com/gotk3/gotk3/glib"
 	"github.com/mitchellh/ioprogress"
 	"io"
 	"os"
@@ -46,6 +47,7 @@ func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, si
 	}
 	alreadyRead := 0
 	timeStart := time.Now()
+	duration := time.Now().Sub(timeStart)
 	buf := make([]byte, blockSize)
 	for {
 		nowRead, err := reader.Read(buf)
@@ -62,16 +64,24 @@ func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, si
 		if _, err = writer.Write(buf); err != nil {
 			return err
 		}
-		value := float64(alreadyRead) / float64(size)
-		duration := time.Now().Sub(timeStart).String()
-		app.UpdateEncryptionProgress(value, duration)
+		if app.encryptProgressBar != nil {
+			value := float64(alreadyRead) / float64(size)
+			duration = time.Now().Sub(timeStart)
+			glib.IdleAdd(func() {
+				app.UpdateEncryptionProgress(value, duration.String())
+			})
+		}
 	}
-
+	if app.encryptProgressBar != nil {
+		glib.IdleAdd(func() {
+			app.UpdateEncryptionProgress(1.0, duration.String())
+		})
+	}
 	return nil
 }
 
 //Used for ECB and CBC ciphers only because they implement BlockMode interface
-func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) error {
+func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, app *GUIApp) error {
 
 	var size uint64
 	var readBytes uint64
@@ -81,7 +91,9 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) er
 	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
 		return err
 	}
-
+	alreadyRead := 0
+	timeStart := time.Now()
+	duration := time.Now().Sub(timeStart)
 	buf := make([]byte, blockSize)
 	for {
 		_, err := io.ReadFull(reader, buf)
@@ -111,7 +123,18 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer) er
 		if _, err = writer.Write(buf); err != nil {
 			return err
 		}
-
+		if app.decryptProgressBar != nil {
+			value := float64(alreadyRead) / float64(size)
+			duration = time.Now().Sub(timeStart)
+			glib.IdleAdd(func() {
+				app.UpdateDecryptionProgress(value, duration.String())
+			})
+		}
+	}
+	if app.decryptProgressBar != nil {
+		glib.IdleAdd(func() {
+			app.UpdateDecryptionProgress(1.0, duration.String())
+		})
 	}
 	return nil
 }
@@ -123,11 +146,12 @@ func encryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 		return
 	}
 	startTime := time.Now()
+	duration := time.Now().Sub(startTime)
 	updateProgress := func() ioprogress.DrawFunc {
 		foo := func(progress, total int64) error {
 			value := float64(progress) / float64(total)
-			duration := time.Now().Sub(startTime).String()
-			app.UpdateEncryptionProgress(value, duration)
+			duration = time.Now().Sub(startTime)
+			app.UpdateEncryptionProgress(value, duration.String())
 			return nil
 		}
 		return foo
@@ -147,12 +171,12 @@ func encryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 		if _, err := io.Copy(writer, progressReader); err != nil {
 			panic(err)
 		}
+		app.UpdateEncryptionProgress(1.0, duration.String())
 	} else {
 		if _, err := io.Copy(writer, bReader); err != nil {
 			panic(err)
 		}
 	}
-
 	return
 }
 
@@ -190,11 +214,12 @@ func encryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 	}
 
 	startTime := time.Now()
+	duration := time.Now().Sub(startTime)
 	updateProgress := func() ioprogress.DrawFunc {
 		foo := func(progress, total int64) error {
 			value := float64(progress / total)
-			duration := time.Now().Sub(startTime).String()
-			app.UpdateEncryptionProgress(value, duration)
+			duration = time.Now().Sub(startTime)
+			app.UpdateEncryptionProgress(value, duration.String())
 			return nil
 		}
 		return foo
@@ -214,6 +239,7 @@ func encryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 		if _, err := io.Copy(writer, progressReader); err != nil {
 			panic(err)
 		}
+		app.UpdateEncryptionProgress(1.0, duration.String())
 	} else {
 		if _, err := io.Copy(writer, bReader); err != nil {
 			panic(err)
@@ -223,25 +249,49 @@ func encryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 	return
 }
 
-func decryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size uint64, app *GUIApp) (err error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return
 	}
 
+	startTime := time.Now()
+	duration := time.Now().Sub(startTime)
+	updateProgress := func() ioprogress.DrawFunc {
+		foo := func(progress, total int64) error {
+			value := float64(progress) / float64(total)
+			duration = time.Now().Sub(startTime)
+			app.UpdateDecryptionProgress(value, duration.String())
+			return nil
+		}
+		return foo
+	}
+	progressReader := &ioprogress.Reader{
+		Reader:   bReader,
+		Size:     int64(size),
+		DrawFunc: updateProgress(),
+	}
+
 	stream := cipher.NewCFBDecrypter(block, iv[:])
 
 	writer := &cipher.StreamWriter{S: stream, W: out}
 	// Copy the input to the output buffer, encrypting as we go.
-	if _, err := io.Copy(writer, bReader); err != nil {
-		panic(err)
+	if app.decryptProgressBar != nil {
+		if _, err := io.Copy(writer, progressReader); err != nil {
+			panic(err)
+		}
+		app.UpdateDecryptionProgress(1.0, duration.String())
+	} else {
+		if _, err := io.Copy(writer, bReader); err != nil {
+			panic(err)
+		}
 	}
 
 	return
 }
 
-func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer, app *GUIApp) (err error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return
@@ -249,7 +299,7 @@ func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err er
 
 	mode := cipher.NewCBCDecrypter(block, iv[:])
 
-	err = decryptStream(mode, bReader, out)
+	err = decryptStream(mode, bReader, out, app)
 
 	if err != nil {
 		return err
@@ -258,7 +308,7 @@ func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err er
 	return
 }
 
-func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptECB(key []byte, bReader io.Reader, out io.Writer, app *GUIApp) (err error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -266,7 +316,7 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	}
 
 	mode := aesciphers.NewECBDecrypter(block)
-	err = decryptStream(mode, bReader, out)
+	err = decryptStream(mode, bReader, out, app)
 
 	if err != nil {
 		return err
@@ -275,19 +325,43 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer) (err error) {
 	return
 }
 
-func decryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer) (err error) {
+func decryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size uint64, app *GUIApp) (err error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return
 	}
 
+	startTime := time.Now()
+	duration := time.Now().Sub(startTime)
+	updateProgress := func() ioprogress.DrawFunc {
+		foo := func(progress, total int64) error {
+			value := float64(progress) / float64(total)
+			duration = time.Now().Sub(startTime)
+			app.UpdateDecryptionProgress(value, duration.String())
+			return nil
+		}
+		return foo
+	}
+	progressReader := &ioprogress.Reader{
+		Reader:   bReader,
+		Size:     int64(size),
+		DrawFunc: updateProgress(),
+	}
+
 	stream := cipher.NewOFB(block, iv[:])
 
 	writer := &cipher.StreamWriter{S: stream, W: out}
 	// Copy the input to the output buffer, encrypting as we go.
-	if _, err := io.Copy(writer, bReader); err != nil {
-		panic(err)
+	if app.decryptProgressBar != nil {
+		if _, err := io.Copy(writer, progressReader); err != nil {
+			panic(err)
+		}
+		app.UpdateDecryptionProgress(1.0, duration.String())
+	} else {
+		if _, err := io.Copy(writer, bReader); err != nil {
+			panic(err)
+		}
 	}
 
 	return
@@ -323,20 +397,21 @@ func EncryptTextMessage(key []byte, iv []byte, message string, cipherblockmode c
 }
 
 //DecryptTextMessage decrypts given bytes to readable string. It takes key, input byte array and cipher block mode as argument. As a result output string is produced.
-func DecryptTextMessage(key []byte, iv []byte, message []byte, cipherblockmode cipherblockmode) (result string, err error) {
+func DecryptTextMessage(key []byte, iv []byte, message []byte, cipherblockmode cipherblockmode, app *GUIApp) (result string, err error) {
 
-	bReader := bytes.NewReader([]byte(message))
+	bMessage := []byte(message)
+	bReader := bytes.NewReader(bMessage)
 	var b bytes.Buffer
 
 	switch cipherblockmode {
 	case CBC:
-		err = decryptCBC(key, iv, bReader, io.Writer(&b))
+		err = decryptCBC(key, iv, bReader, io.Writer(&b), app)
 	case CFB:
-		err = decryptCFB(key, iv, bReader, io.Writer(&b))
+		err = decryptCFB(key, iv, bReader, io.Writer(&b), uint64(len(bMessage)), app)
 	case OFB:
-		err = decryptOFB(key, iv, bReader, io.Writer(&b))
+		err = decryptOFB(key, iv, bReader, io.Writer(&b), uint64(len(bMessage)), app)
 	case ECB:
-		err = decryptECB(key, bReader, io.Writer(&b))
+		err = decryptECB(key, bReader, io.Writer(&b), app)
 	}
 
 	if err != nil {
@@ -374,16 +449,20 @@ func EncryptFile(key []byte, iv []byte, input *os.File, output *os.File, cipherb
 }
 
 //DecryptFile decrypts file using given key. It takes key, os.File (twice as input and output) and cipher block mode as argument.
-func DecryptFile(key []byte, iv []byte, input *os.File, output *os.File, cipherblockmode cipherblockmode) (err error) {
+func DecryptFile(key []byte, iv []byte, input *os.File, output *os.File, cipherblockmode cipherblockmode, app *GUIApp) (err error) {
+	fi, err := input.Stat()
+	if err != nil {
+		return
+	}
 	switch cipherblockmode {
 	case CBC:
-		err = decryptCBC(key, iv, input, output)
+		err = decryptCBC(key, iv, input, output, app)
 	case CFB:
-		err = decryptCFB(key, iv, input, output)
+		err = decryptCFB(key, iv, input, output, uint64(fi.Size()), app)
 	case OFB:
-		err = decryptOFB(key, iv, input, output)
+		err = decryptOFB(key, iv, input, output, uint64(fi.Size()), app)
 	case ECB:
-		err = decryptECB(key, input, output)
+		err = decryptECB(key, input, output, app)
 	}
 
 	if err != nil {

@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -60,7 +59,7 @@ func GUIAppNew(port int32) (app GUIApp) {
 func (app *GUIApp) getLoginLayout() *gtk.Grid {
 	callback := func(password string, layout *gtk.Grid, errorLabel *gtk.Label) {
 		encryptor := EncryptedMessageHandler(32, CBC)
-		encryptor.LoadKeys("config", password)
+		encryptor.LoadKeys("config", password, app)
 		layout.Destroy()
 		app.passwordCallback(encryptor)
 	}
@@ -318,8 +317,8 @@ func (app *GUIApp) ShowDownloadFilePopup(filename string) {
 	downloadProgressLayout, downloadProgressBar, downloadTimeLabel := getProgressBarLayout("Download progress: ")
 	filenameLabel, _ := gtk.LabelNew(filename)
 	layout.Attach(filenameLabel, 0, 0, 3, 1)
-	layout.Attach(decryptProgressLayout, 0, 1, 3, 1)
-	layout.Attach(downloadProgressLayout, 0, 2, 3, 1)
+	layout.Attach(downloadProgressLayout, 0, 1, 3, 1)
+	layout.Attach(decryptProgressLayout, 0, 2, 3, 1)
 	app.decryptProgressBar = decryptProgressBar
 	app.decryptTimeLabel = decryptTimeLabel
 	app.downloadProgressBar = downloadProgressBar
@@ -330,34 +329,26 @@ func (app *GUIApp) ShowDownloadFilePopup(filename string) {
 
 //UpdateDecryptionProgress updates decryption status
 func (app *GUIApp) UpdateDecryptionProgress(value float64, duration string) {
-	glib.IdleAdd(func() {
-		app.decryptProgressBar.SetFraction(value)
-		app.decryptTimeLabel.SetText(duration)
-	})
+	app.decryptProgressBar.SetFraction(value)
+	app.decryptTimeLabel.SetText(duration)
 }
 
 //UpdateDownloadProgress updates download status
 func (app *GUIApp) UpdateDownloadProgress(value float64, duration string) {
-	glib.IdleAdd(func() {
-		app.downloadProgressBar.SetFraction(value)
-		app.downloadTimeLabel.SetText(duration)
-	})
+	app.downloadProgressBar.SetFraction(value)
+	app.downloadTimeLabel.SetText(duration)
 }
 
 //UpdateEncryptionProgress updates encryption status
 func (app *GUIApp) UpdateEncryptionProgress(value float64, duration string) {
-	glib.IdleAdd(func() {
-		app.encryptProgressBar.SetFraction(value)
-		app.encryptTimeLabel.SetText(duration)
-	})
+	app.encryptProgressBar.SetFraction(value)
+	app.encryptTimeLabel.SetText(duration)
 }
 
 //UpdateUploadProgress updates upload status
 func (app *GUIApp) UpdateUploadProgress(value float64, duration string) {
-	glib.IdleAdd(func() {
-		app.uploadProgressBar.SetFraction(value)
-		app.uploadTimeLabel.SetText(duration)
-	})
+	app.uploadProgressBar.SetFraction(value)
+	app.uploadTimeLabel.SetText(duration)
 }
 
 //UpdateCipherMode updates cipher mode choice box

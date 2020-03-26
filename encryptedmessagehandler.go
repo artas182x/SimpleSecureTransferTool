@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/gotk3/gotk3/glib"
 	"math/rand"
 	"os"
 	"path"
@@ -105,7 +106,11 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 		encMess.generateRandomKeyandIV()
 	}
 
-	app.UpdateCipherMode()
+	if app.cipherChoiceBox != nil {
+		glib.IdleAdd(func() {
+			app.UpdateCipherMode()
+		})
+	}
 
 	return nil
 }
@@ -150,7 +155,7 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 		return err
 	}
 
-	if decrypted, err = DecryptTextMessage(encMess.aesKey, encMess.iv, buf, encMess.cipherMode); err != nil {
+	if decrypted, err = DecryptTextMessage(encMess.aesKey, encMess.iv, buf, encMess.cipherMode, app); err != nil {
 		return err
 	}
 
@@ -162,9 +167,13 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 			suffix = "\n"
 		}
 		if utf8.ValidString(decrypted) {
-			app.ShowMessage(decrypted + suffix)
+			glib.IdleAdd(func() {
+				app.ShowMessage(decrypted + suffix)
+			})
 		} else {
-			app.ShowMessage(hex.EncodeToString([]byte(decrypted)) + suffix)
+			glib.IdleAdd(func() {
+				app.ShowMessage(hex.EncodeToString([]byte(decrypted)) + suffix)
+			})
 		}
 	}
 	return nil
@@ -225,7 +234,7 @@ func (encMess *EncMess) GenerateTextMessage(origText string, app *GUIApp) ([]byt
 
 //LoadKeys load keys encrypted by AES-CBC using SHA-256 hash
 //TODO load public and private key from file in GUI at app startup.  Don't throw error when password is incorrect
-func (encMess *EncMess) LoadKeys(dir string, password string) (err error) {
+func (encMess *EncMess) LoadKeys(dir string, password string, app *GUIApp) (err error) {
 
 	hash := sha256.Sum256([]byte(password))
 
@@ -249,13 +258,13 @@ func (encMess *EncMess) LoadKeys(dir string, password string) (err error) {
 
 	defer privKeyEncrypted.Close()
 
-	if err = decryptCBC(hash[:], iv, privKeyEncrypted, privKey); err != nil {
+	if err = decryptCBC(hash[:], iv, privKeyEncrypted, privKey, app); err != nil {
 		return err
 	}
 
 	defer pubKeyEncrypted.Close()
 
-	if err = decryptCBC(hash[:], iv, pubKeyEncrypted, pubKey); err != nil {
+	if err = decryptCBC(hash[:], iv, pubKeyEncrypted, pubKey, app); err != nil {
 		return err
 	}
 

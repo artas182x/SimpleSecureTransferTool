@@ -147,8 +147,12 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
 
 			fmt.Printf("Received hello from: IP: %s PubKey Hash: %s\n", netClient.remoteIP, hex.EncodeToString(hash[:]))
-			app.SetConnected(true)
-			app.ChangeAddress(netClient.remoteIP)
+			if app.addressBox != nil {
+				glib.IdleAdd(func() {
+					app.SetConnected(true)
+					app.ChangeAddress(netClient.remoteIP)
+				})
+			}
 			if err := netClient.SendHelloResponse(); err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -183,7 +187,11 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 
 			fmt.Println("Received hello response")
-			app.SetConnected(true)
+			if app.connectionStatusLabel != nil {
+				glib.IdleAdd(func() {
+					app.SetConnected(true)
+				})
+			}
 			netClient.SetClientState(true)
 
 			err = netClient.SendConnectionProperties()
@@ -365,15 +373,18 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 
 	reader.Read(bufferFileName)
 	fileName := strings.Trim(string(bufferFileName), ":")
-	glib.IdleAdd(func() {
-		app.ShowDownloadFilePopup(fileName)
-	})
+	if app.messageTextBuffer != nil {
+		glib.IdleAdd(func() {
+			app.ShowDownloadFilePopup(fileName)
+		})
+	}
 	newFile, err := os.Create(fileName + ".encrypted")
 	if err != nil {
 		return err
 	}
 	var receivedBytes int64
 	timeStart := time.Now()
+	duration := time.Now().Sub(timeStart)
 	for {
 		if (fileSize - receivedBytes) < bufsize {
 			io.CopyN(newFile, reader, fileSize-receivedBytes)
@@ -384,13 +395,19 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 		receivedBytes += bufsize
 
 		fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
-		value := float64(receivedBytes) / float64(fileSize)
-		duration := time.Now().Sub(timeStart).String()
+		if app.downloadProgressBar != nil {
+			value := float64(receivedBytes) / float64(fileSize)
+			duration = time.Now().Sub(timeStart)
+			glib.IdleAdd(func() {
+				app.UpdateDownloadProgress(value, duration.String())
+			})
+		}
+	}
+	if app.downloadProgressBar != nil {
 		glib.IdleAdd(func() {
-			app.UpdateDownloadProgress(value, duration)
+			app.UpdateDownloadProgress(1.0, duration.String())
 		})
 	}
-
 	newFileDecrypted, err := os.Create(path.Join(netClient.receiveDir, fileName))
 
 	if err != nil {
@@ -408,7 +425,7 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 	fmt.Println("Decrypting file...")
 
 	if err := DecryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, newFile,
-		newFileDecrypted, netClient.messageHandler.cipherMode); err != nil {
+		newFileDecrypted, netClient.messageHandler.cipherMode, app); err != nil {
 		return err
 	}
 
@@ -480,6 +497,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	sendBuffer := make([]byte, bufsize)
 	sendBytes := 0
 	startTime := time.Now()
+	duration := time.Now().Sub(startTime)
 	for {
 		read, err := fileEncrypted.Read(sendBuffer)
 		sendBytes += read
@@ -488,12 +506,19 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 		}
 
 		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
-		duration := time.Now().Sub(startTime)
-		println(duration.String())
-		app.UpdateUploadProgress(float64(sendBytes)/float64(stat2.Size()), duration.String())
+		if app.uploadProgressBar != nil {
+			duration = time.Now().Sub(startTime)
+			glib.IdleAdd(func() {
+				app.UpdateUploadProgress(float64(sendBytes)/float64(stat2.Size()), duration.String())
+			})
+		}
 		conn.Write(sendBuffer)
 	}
-
+	if app.uploadProgressBar != nil {
+		glib.IdleAdd(func() {
+			app.UpdateUploadProgress(1.0, duration.String())
+		})
+	}
 	bufferbyte := make([]byte, 2)
 	conn.Read(bufferbyte)
 
@@ -516,7 +541,11 @@ func (netClient *NetClient) StartPinging(app *GUIApp) {
 		time.Sleep(2 * time.Second)
 		connected := netClient.Ping()
 		if !connected {
-			app.SetConnected(false)
+			if app.connectionStatusLabel != nil {
+				glib.IdleAdd(func() {
+					app.SetConnected(false)
+				})
+			}
 			app.netClient.connected = false
 			break
 		}

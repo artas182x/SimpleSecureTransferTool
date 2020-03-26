@@ -67,7 +67,7 @@ func main() {
 		os.MkdirAll("client", os.ModePerm)
 		password, _ := reader.ReadString('\n')
 		encryptor := EncryptedMessageHandler(32, ECB)
-		err := encryptor.LoadKeys("client", password)
+		err := encryptor.LoadKeys("client", password, &nullGuiApp)
 		if err != nil {
 			if os.IsNotExist(err) {
 				fmt.Println("No keypair available. Creating one")
@@ -102,7 +102,7 @@ func exampleNetclient() {
 	encMess := EncryptedMessageHandler(32, ECB)
 	var nullGuiApp GUIApp
 	//Example of handling keys in gui
-	err := encMess.LoadKeys("test/client1", "123456")
+	err := encMess.LoadKeys("test/client1", "123456", &nullGuiApp)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No keypair available. Creating one")
@@ -121,7 +121,7 @@ func exampleNetclient() {
 
 	encMess2 := EncryptedMessageHandler(32, ECB)
 
-	err = encMess2.LoadKeys("test/client2", "1234567")
+	err = encMess2.LoadKeys("test/client2", "1234567", &nullGuiApp)
 	if err != nil {
 		if os.IsNotExist(err) {
 			fmt.Println("No keypair available. Creating one")
@@ -192,7 +192,7 @@ func exampleFileEncryptionAndDecryption() {
 		log.Fatal(err)
 	}
 
-	err = DecryptFile(encMess.aesKey, encMess.iv, fileEncrypted, fileDecrypted, encMess.cipherMode)
+	err = DecryptFile(encMess.aesKey, encMess.iv, fileEncrypted, fileDecrypted, encMess.cipherMode, &nullGuiApp)
 	if err != nil {
 		log.Fatal(err)
 	}
