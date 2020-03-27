@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 
@@ -106,7 +108,7 @@ func (app *GUIApp) getRegisterLayout() *gtk.Grid {
 
 func (app *GUIApp) getConnectLayout() *gtk.Grid {
 	layout := getGridLayout()
-	titleLabel, _ := gtk.LabelNew("Targets IP address: ")
+	titleLabel, _ := gtk.LabelNew("Target IP address: ")
 	addressCallback := func(textBox *gtk.Entry) {
 		text, _ := textBox.GetText()
 		app.addressChosenCallback(text)
@@ -219,6 +221,8 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 	layout.Attach(enterButton, 2, 2, 1, 1)
 	app.messageTextBuffer = textBuffer
 	app.messageTextIter = iter
+	hash := sha256.Sum256(app.netClient.messageHandler.publicKeyClient)
+	app.messageTextBuffer.Insert(app.messageTextIter, "My Public Key SHA256 digest: "+hex.EncodeToString(hash[:])+"\n")
 	return layout
 }
 

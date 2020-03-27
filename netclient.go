@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gotk3/gotk3/gtk"
+
 	"github.com/gotk3/gotk3/glib"
 )
 
@@ -141,21 +143,43 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				c.Close()
 			}
 
-			netClient.SetClientState(true)
-
 			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
 
 			fmt.Printf("Received hello from: IP: %s PubKey Hash: %s\n", netClient.remoteIP, hex.EncodeToString(hash[:]))
-			if app.addressBox != nil {
-				glib.IdleAdd(func() {
-					app.SetConnected(true)
-					app.ChangeAddress(netClient.remoteIP)
-				})
+			var response gtk.ResponseType
+			glib.IdleAdd(func() {
+				messagedialog := gtk.MessageDialogNew(
+					app.mainWindow,
+					gtk.DIALOG_MODAL,
+					gtk.MESSAGE_INFO,
+					gtk.BUTTONS_YES_NO,
+					fmt.Sprintf("Do you want to accept client with Public Key SHA256 Hash: %s ?\n", hex.EncodeToString(hash[:])))
+
+				response = messagedialog.Run()
+				messagedialog.Destroy()
+			})
+
+			for response != gtk.RESPONSE_YES && response != gtk.RESPONSE_NO {
 			}
-			if err := netClient.SendHelloResponse(); err != nil {
-				fmt.Println(err)
+
+			if response == gtk.RESPONSE_YES {
+
+				netClient.SetClientState(true)
+				if app.addressBox != nil {
+					glib.IdleAdd(func() {
+						app.SetConnected(true)
+						app.ChangeAddress(netClient.remoteIP)
+					})
+				}
+				if err := netClient.SendHelloResponse(); err != nil {
+					fmt.Println(err)
+					c.Close()
+					return
+				}
+			}
+
+			if response == gtk.RESPONSE_NO {
 				c.Close()
-				return
 			}
 
 			//TODO GUI: Ask if user accepts connection. If yes set status to: exchanging session keys
