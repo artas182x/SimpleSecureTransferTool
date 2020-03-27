@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/gotk3/gotk3/glib"
 	"io"
 	"net"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gotk3/gotk3/glib"
 )
 
 const magicnumber uint32 = 0x1337ABCD
@@ -54,13 +55,11 @@ func NetClientInit(listenPort int32, encMess EncMess) (netClient NetClient) {
 	return
 }
 
-//SetCipher sets cipher
-func (netClient *NetClient) SetCipher(cipher cipherblockmode) {
+func (netClient *NetClient) setCipher(cipher cipherblockmode) {
 	netClient.messageHandler.cipherMode = cipher
 }
 
-//GetCipher gets cipher
-func (netClient *NetClient) GetCipher() cipherblockmode {
+func (netClient *NetClient) getCipher() cipherblockmode {
 	return netClient.messageHandler.cipherMode
 }
 
