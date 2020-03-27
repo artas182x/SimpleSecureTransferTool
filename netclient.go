@@ -157,7 +157,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 					gtk.DIALOG_MODAL,
 					gtk.MESSAGE_INFO,
 					gtk.BUTTONS_YES_NO,
-					fmt.Sprintf("Do you want to accept client with Public Key SHA256 Hash: %s ?\n", hex.EncodeToString(hash[:])))
+					fmt.Sprintf("Do you want to accept client with public key SHA-256 hash: %s ?\n", hex.EncodeToString(hash[:])))
 
 				response = messagedialog.Run()
 				messagedialog.Destroy()

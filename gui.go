@@ -226,8 +226,6 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 	layout.Attach(enterButton, 2, 2, 1, 1)
 	app.messageTextBuffer = textBuffer
 	app.messageTextIter = iter
-	hash := sha256.Sum256(app.netClient.messageHandler.publicKeyClient)
-	app.messageTextBuffer.Insert(app.messageTextIter, "My Public Key SHA256 digest: "+hex.EncodeToString(hash[:])+"\n")
 	return layout
 }
 
@@ -285,6 +283,8 @@ func (app *GUIApp) passwordCallback(encryptor EncMess) {
 }
 
 func (app *GUIApp) addressChosenCallback(address string) {
+	hash := sha256.Sum256(app.netClient.messageHandler.myPublicKey)
+	app.messageTextBuffer.Insert(app.messageTextIter, "My public key SHA-256 digest: "+hex.EncodeToString(hash[:])+"\n")
 	if len(strings.Split(address, ":")) == 1 {
 		address = fmt.Sprintf("%s:%d", address, app.port)
 	}
