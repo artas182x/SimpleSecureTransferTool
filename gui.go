@@ -291,8 +291,8 @@ func (app *GUIApp) addressChosenCallback(address string) {
 	if err != nil {
 		println("not connected")
 		app.messageTextBuffer.Insert(app.messageTextIter, fmt.Sprintf("%v\n", err))
-		app.netClient.connected = false
-		app.connectionStatusLabel.SetText("No")
+		app.netClient.SetClientState(false)
+		app.SetConnected(false)
 	}
 }
 
@@ -368,7 +368,12 @@ func (app *GUIApp) UpdateCipherMode() {
 
 //ShowMessage shows user message in the messaging box
 func (app *GUIApp) ShowMessage(message string) {
-	str := fmt.Sprintf("%s Friend: %s", time.Now().Format("15:04"), message)
+	app.PushMessageToBuffer("Friend: " + message)
+}
+
+//PushMessageToBuffer shows message in the messaging box
+func (app *GUIApp) PushMessageToBuffer(message string) {
+	str := fmt.Sprintf("%s %s", time.Now().Format("15:04"), message)
 	app.messageTextBuffer.Insert(app.messageTextIter, str)
 }
 
@@ -381,10 +386,11 @@ func (app *GUIApp) ChangeAddress(address string) {
 func (app *GUIApp) SetConnected(connected bool) {
 	if connected {
 		app.connectionStatusLabel.SetText("Yes")
+		app.PushMessageToBuffer("Connected\n")
 		go app.netClient.StartPinging(app)
 	} else {
 		app.connectionStatusLabel.SetText("No")
-		app.ChangeAddress("")
+		app.PushMessageToBuffer("Disconnected\n")
 	}
 }
 

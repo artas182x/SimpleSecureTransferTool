@@ -221,8 +221,6 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 			netClient.SetClientState(true)
 			println("connected")
-			app.netClient.connected = true
-			app.connectionStatusLabel.SetText("Yes")
 
 			err = netClient.SendConnectionProperties()
 
@@ -578,7 +576,7 @@ func (netClient *NetClient) StartPinging(app *GUIApp) {
 					app.SetConnected(false)
 				})
 			}
-			app.netClient.connected = false
+			app.netClient.SetClientState(false)
 			break
 		}
 	}
