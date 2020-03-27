@@ -91,7 +91,6 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, ap
 	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
 		return err
 	}
-	alreadyRead := 0
 	timeStart := time.Now()
 	duration := time.Now().Sub(timeStart)
 	buf := make([]byte, blockSize)
@@ -124,7 +123,7 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, ap
 			return err
 		}
 		if app.decryptProgressBar != nil {
-			value := float64(alreadyRead) / float64(size)
+			value := float64(readBytes) / float64(size)
 			duration = time.Now().Sub(timeStart)
 			glib.IdleAdd(func() {
 				app.UpdateDecryptionProgress(value, duration.String())
