@@ -43,6 +43,7 @@ const (
 	HELLO = iota
 	HELLORESPONSE
 	CONNECTIONPROPERTIES
+	CIPHERMODE
 	TEXTMESSAGE
 	FILE
 	PING
@@ -217,9 +218,6 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 
 			fmt.Println("Received hello response")
 
-			app.SetConnected(true)
-			println("connected")
-
 			/*	err = netClient.SendConnectionProperties()
 
 				if err != nil {
@@ -231,7 +229,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			//TODO GUI: Change status to: exchanging session key
 		}
 	case CONNECTIONPROPERTIES:
-		if netClient.connected {
+		if !netClient.connected {
 			reader.Read(buffer)
 			err = netClient.messageHandler.HandleConnectionProperties(buffer, app)
 			if err != nil {
@@ -240,7 +238,21 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				return
 			}
 
+			app.SetConnected(true)
+			println("connected")
+
 			fmt.Println("Received connection properties")
+		}
+
+	case CIPHERMODE:
+		if netClient.connected {
+			reader.Read(buffer)
+			err = netClient.messageHandler.HandleCipherMode(buffer, app)
+			if err != nil {
+				fmt.Println(err)
+				c.Close()
+				return
+			}
 		}
 
 	case TEXTMESSAGE:
@@ -354,6 +366,23 @@ func (netClient *NetClient) SendHelloResponse() error {
 
 	return nil
 
+}
+
+//SendCipherMode generates and sends client cipher mode change notification frame
+func (netClient *NetClient) SendCipherMode() error {
+	toSend, err := netClient.messageHandler.GenerateCipherMode()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = netClient.send(toSend, CIPHERMODE, netClient.remoteIP)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 //SendConnectionProperties generates and sends client properties frame

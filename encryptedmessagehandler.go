@@ -52,6 +52,39 @@ func EncryptedMessageHandler(keySize uint32, cipher cipherblockmode) (encMess En
 	return
 }
 
+//HandleCipherMode decrypts cipher mode using privateKey
+//  Schema of frame
+// |ciphermode byte|
+//
+func (encMess *EncMess) HandleCipherMode(props []byte, app *GUIApp) error {
+
+	var decrypted []byte
+	var err error
+
+	if decrypted, err = DecryptRSA(props, encMess.myPrivateKey); err != nil {
+		return err
+	}
+
+	buf := bytes.NewBuffer(decrypted)
+
+	if err = binary.Read(buf, endianness, &encMess.cipherMode); err != nil {
+		return err
+	}
+
+	//Wrong cipher properties - assume defaults - don't throw error, it's project requirement
+	if encMess.cipherMode > 4 {
+		encMess.cipherMode = 0
+	}
+
+	if app.cipherChoiceBox != nil {
+		glib.IdleAdd(func() {
+			app.UpdateCipherMode()
+		})
+	}
+
+	return nil
+}
+
 //HandleConnectionProperties decrypts connection properties using private key and sets all properties
 //  Schema of frame
 // |alghorytm byte|keysize int32|blocksize int32|ciphermode byte|aesKey [keysize]byte|IV (if exists) [blocksize]byte|
@@ -191,6 +224,22 @@ func (encMess *EncMess) GenerateHelloMessage(listenPort int32) (out []byte, err 
 	binary.Write(buf, endianness, encMess.myPublicKey)
 
 	return buf.Bytes(), nil
+}
+
+//GenerateCipherMode generates encrypted cipher mode frame using current settings
+// Schema of frame
+// |ciphermode byte|
+//
+func (encMess *EncMess) GenerateCipherMode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	binary.Write(buf, endianness, encMess.cipherMode)
+
+	out, err := EncryptRSA(buf.Bytes(), encMess.publicKeyClient)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 //GenerateConnectionProperties generates encrypted connection properties frame using current settings

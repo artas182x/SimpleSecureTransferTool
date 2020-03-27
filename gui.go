@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/gotk3/gotk3/glib"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/gotk3/gotk3/glib"
 
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -288,7 +289,7 @@ func (app *GUIApp) messageWrittenCallback(message string) {
 
 func (app *GUIApp) cipherChosenCallback(cipher int) {
 	app.netClient.setCipher(cipherblockmode(cipher))
-	err := app.netClient.SendConnectionProperties()
+	err := app.netClient.SendCipherMode()
 	if err != nil {
 		println(err.Error())
 	}
@@ -304,8 +305,8 @@ func (app *GUIApp) passwordCallback(encryptor EncMess) {
 	pane.Pack1(leftLayout, true, true)
 	rightLayout := app.getConfigLayout()
 	pane.Pack2(rightLayout, true, true)
-	hash := sha256.Sum256(app.netClient.messageHandler.publicKeyClient)
-	hashLabel, _ := gtk.LabelNew("My Public Key SHA256 digest: " + hex.EncodeToString(hash[:]) + "\n")
+	hash := sha256.Sum256(app.netClient.messageHandler.myPublicKey)
+	hashLabel, _ := gtk.LabelNew("My public key SHA256 digest: " + hex.EncodeToString(hash[:]) + "\n")
 	app.mainLayout.Attach(hashLabel, 0, 0, 1, 1)
 	app.mainLayout.Attach(pane, 0, 1, 1, 1)
 	app.mainWindow.ShowAll()
