@@ -143,6 +143,10 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				c.Close()
 			}
 
+			c.Write([]byte("OK"))
+			c.Close()
+			c = nil
+
 			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
 
 			fmt.Printf("Received hello from: IP: %s PubKey Hash: %s\n", netClient.remoteIP, hex.EncodeToString(hash[:]))
@@ -173,13 +177,13 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				}
 				if err := netClient.SendHelloResponse(); err != nil {
 					fmt.Println(err)
-					c.Close()
+					//c.Close()
 					return
 				}
 			}
 
 			if response == gtk.RESPONSE_NO {
-				c.Close()
+				//c.Close()
 			}
 
 			//TODO GUI: Ask if user accepts connection. If yes set status to: exchanging session keys
@@ -216,6 +220,9 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				})
 			}
 			netClient.SetClientState(true)
+			println("connected")
+			app.netClient.connected = true
+			app.connectionStatusLabel.SetText("Yes")
 
 			err = netClient.SendConnectionProperties()
 
@@ -269,8 +276,10 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 		return
 	}
 
-	c.Write([]byte("OK"))
-	c.Close()
+	if c != nil {
+		c.Write([]byte("OK"))
+		c.Close()
+	}
 
 }
 

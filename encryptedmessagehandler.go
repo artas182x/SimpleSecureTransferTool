@@ -8,13 +8,14 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/gotk3/gotk3/glib"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/gotk3/gotk3/glib"
 )
 
 const rsaSize = 4096 / 8
@@ -172,7 +173,7 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 			})
 		} else {
 			glib.IdleAdd(func() {
-				app.ShowMessage(hex.EncodeToString([]byte(decrypted)) + suffix)
+				app.ShowMessage("(hex) " + hex.EncodeToString([]byte(decrypted)) + suffix)
 			})
 		}
 	}

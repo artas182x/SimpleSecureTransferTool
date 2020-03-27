@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -204,7 +205,8 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 	titleLabel, _ := gtk.LabelNew("Messages: ")
 	textBoxCallback := func(textBox *gtk.Entry) {
 		text, _ := textBox.GetText()
-		textBuffer.Insert(iter, "You: "+text+"\n")
+		str := fmt.Sprintf("%s You: %s\n", time.Now().Format("15:04"), text)
+		textBuffer.Insert(iter, str)
 		textBox.SetText("")
 		app.messageWrittenCallback(text)
 	}
@@ -212,7 +214,8 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 	promptLabel, _ := gtk.LabelNew("Write message: ")
 	enterButtonCallback := func(button *gtk.Button) {
 		text, _ := textInput.GetText()
-		textBuffer.Insert(iter, "You: "+text+"\n")
+		str := fmt.Sprintf("%s You: %s\n", time.Now().Format("15:04"), text)
+		textBuffer.Insert(iter, str)
 		textInput.SetText("")
 		app.messageWrittenCallback(text)
 	}
@@ -290,10 +293,6 @@ func (app *GUIApp) addressChosenCallback(address string) {
 		app.messageTextBuffer.Insert(app.messageTextIter, fmt.Sprintf("%v\n", err))
 		app.netClient.connected = false
 		app.connectionStatusLabel.SetText("No")
-	} else {
-		println("connected")
-		app.netClient.connected = true
-		app.connectionStatusLabel.SetText("Yes")
 	}
 }
 
@@ -369,7 +368,8 @@ func (app *GUIApp) UpdateCipherMode() {
 
 //ShowMessage shows user message in the messaging box
 func (app *GUIApp) ShowMessage(message string) {
-	app.messageTextBuffer.Insert(app.messageTextIter, "Friend: "+message)
+	str := fmt.Sprintf("%s Friend: %s", time.Now().Format("15:04"), message)
+	app.messageTextBuffer.Insert(app.messageTextIter, str)
 }
 
 //ChangeAddress sets showed address to value
