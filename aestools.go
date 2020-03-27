@@ -1,17 +1,18 @@
 package main
 
 import (
-	"./remotes/aesciphers"
 	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/gotk3/gotk3/glib"
-	"github.com/mitchellh/ioprogress"
 	"io"
 	"os"
 	"time"
+
+	"./remotes/aesciphers"
+	"github.com/gotk3/gotk3/glib"
+	"github.com/mitchellh/ioprogress"
 )
 
 //cipherblockmode represents Cipher Block Mode used for encryption/decryption
@@ -39,7 +40,7 @@ func GenerateKey(key []byte) (err error) {
 
 //Used for ECB and CBC ciphers only because they implement BlockMode interface
 func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, size uint64, app *GUIApp) error {
-	blockSize := mode.BlockSize() * 128
+	blockSize := mode.BlockSize() * 2048
 
 	//Write size at the beggining
 	if err := binary.Write(writer, binary.BigEndian, size); err != nil {
@@ -85,7 +86,7 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, ap
 
 	var size uint64
 	var readBytes uint64
-	blockSize := mode.BlockSize() * 128
+	blockSize := mode.BlockSize() * 2048
 
 	//Read size at the beggining
 	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {

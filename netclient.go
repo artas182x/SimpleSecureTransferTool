@@ -20,7 +20,7 @@ import (
 )
 
 const magicnumber uint32 = 0x1337ABCD
-const bufsize = 8096
+const bufsize = 262144
 
 var endianness = binary.BigEndian
 
