@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -291,7 +292,6 @@ func (app *GUIApp) addressChosenCallback(address string) {
 	if err != nil {
 		println("not connected")
 		app.messageTextBuffer.Insert(app.messageTextIter, fmt.Sprintf("%v\n", err))
-		app.netClient.SetClientState(false)
 		app.SetConnected(false)
 	}
 }
@@ -379,18 +379,31 @@ func (app *GUIApp) PushMessageToBuffer(message string) {
 
 //ChangeAddress sets showed address to value
 func (app *GUIApp) ChangeAddress(address string) {
-	app.addressBox.SetText(address)
+	if app.addressBox != nil {
+		glib.IdleAdd(func() {
+			app.addressBox.SetText(address)
+		})
+	}
 }
 
 //SetConnected sets label to Yes if given true
 func (app *GUIApp) SetConnected(connected bool) {
+	app.netClient.SetClientState(connected)
+
 	if connected {
-		app.connectionStatusLabel.SetText("Yes")
-		app.PushMessageToBuffer("Connected\n")
 		go app.netClient.StartPinging(app)
-	} else {
-		app.connectionStatusLabel.SetText("No")
-		app.PushMessageToBuffer("Disconnected\n")
+	}
+
+	if app.connectionStatusLabel != nil {
+		glib.IdleAdd(func() {
+			if connected {
+				app.connectionStatusLabel.SetText("Yes")
+				app.PushMessageToBuffer("Connected\n")
+			} else {
+				app.connectionStatusLabel.SetText("No")
+				app.PushMessageToBuffer("Disconnected\n")
+			}
+		})
 	}
 }
 

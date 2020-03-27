@@ -167,14 +167,9 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 
 			if response == gtk.RESPONSE_YES {
+				app.SetConnected(true)
+				app.ChangeAddress(netClient.remoteIP)
 
-				netClient.SetClientState(true)
-				if app.addressBox != nil {
-					glib.IdleAdd(func() {
-						app.SetConnected(true)
-						app.ChangeAddress(netClient.remoteIP)
-					})
-				}
 				if err := netClient.SendHelloResponse(); err != nil {
 					fmt.Println(err)
 					//c.Close()
@@ -182,9 +177,9 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				}
 			}
 
-			if response == gtk.RESPONSE_NO {
-				//c.Close()
-			}
+			///	if response == gtk.RESPONSE_NO {
+			//c.Close()
+			//	}
 
 			//TODO GUI: Ask if user accepts connection. If yes set status to: exchanging session keys
 		}
@@ -214,12 +209,8 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 
 			fmt.Println("Received hello response")
-			if app.connectionStatusLabel != nil {
-				glib.IdleAdd(func() {
-					app.SetConnected(true)
-				})
-			}
-			netClient.SetClientState(true)
+
+			app.SetConnected(true)
 			println("connected")
 
 			err = netClient.SendConnectionProperties()
@@ -571,14 +562,10 @@ func (netClient *NetClient) StartPinging(app *GUIApp) {
 		time.Sleep(2 * time.Second)
 		connected := netClient.Ping()
 		if !connected {
-			if app.connectionStatusLabel != nil {
-				glib.IdleAdd(func() {
-					app.SetConnected(false)
-				})
-			}
-			app.netClient.SetClientState(false)
+			app.SetConnected(false)
 			break
 		}
+
 	}
 }
 
