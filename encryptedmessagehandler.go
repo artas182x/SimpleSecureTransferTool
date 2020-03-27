@@ -116,10 +116,10 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 	return nil
 }
 
-//HandleReceivedPublicKey is being executed when we receive client's public key
+//HandleHelloMessage is being executed when we receive client's public key
 // Schema of frame
 // |keySize int32|key [bits]byte|
-func (encMess *EncMess) HandleReceivedPublicKey(key []byte) error {
+func (encMess *EncMess) HandleHelloMessage(key []byte) error {
 	buf := bytes.NewBuffer(key)
 
 	var bits int32
@@ -132,6 +132,41 @@ func (encMess *EncMess) HandleReceivedPublicKey(key []byte) error {
 	encMess.publicKeyClient = make([]byte, bits)
 
 	if err = binary.Read(buf, endianness, encMess.publicKeyClient); err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+//HandleHelloResponseMessage is being executed when we receive client's public key encrypted by his public key
+// Schema of frame
+// |keySize int32|key [bits]byte|
+func (encMess *EncMess) HandleHelloResponseMessage(key []byte) error {
+	buf := bytes.NewBuffer(key)
+
+	var bits int32
+	var bitsEncrypted int32
+	var err error
+
+	if err = binary.Read(buf, endianness, &bits); err != nil {
+		return err
+	}
+
+	if err = binary.Read(buf, endianness, &bitsEncrypted); err != nil {
+		return err
+	}
+
+	encMess.publicKeyClient = make([]byte, bits)
+	encryptedMessage := make([]byte, bitsEncrypted)
+
+	if err = binary.Read(buf, endianness, encryptedMessage); err != nil {
+		return err
+	}
+
+	encMess.publicKeyClient, err = DecryptRSA(encryptedMessage, encMess.myPrivateKey)
+
+	if err != nil {
 		return err
 	}
 
@@ -194,6 +229,24 @@ func (encMess *EncMess) GenerateHelloMessage(listenPort int32) (out []byte, err 
 	binary.Write(buf, endianness, listenPort)
 	binary.Write(buf, endianness, int32(cap(encMess.myPublicKey)))
 	binary.Write(buf, endianness, encMess.myPublicKey)
+
+	return buf.Bytes(), nil
+}
+
+//GenerateHelloResponseMessage generates hello responsemessage and rsa keypair
+func (encMess *EncMess) GenerateHelloResponseMessage(listenPort int32) (out []byte, err error) {
+
+	buf := new(bytes.Buffer)
+
+	out, err = EncryptRSA(encMess.myPublicKey, encMess.publicKeyClient)
+	if err != nil {
+		return nil, err
+	}
+
+	binary.Write(buf, endianness, listenPort)
+	binary.Write(buf, endianness, int32(cap(encMess.myPublicKey)))
+	binary.Write(buf, endianness, int32(cap(out)))
+	binary.Write(buf, endianness, out)
 
 	return buf.Bytes(), nil
 }

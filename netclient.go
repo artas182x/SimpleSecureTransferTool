@@ -137,7 +137,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				return
 			}
 
-			err = netClient.messageHandler.HandleReceivedPublicKey(buffer)
+			err = netClient.messageHandler.HandleHelloMessage(buffer)
 			if err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -201,7 +201,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				return
 			}
 
-			err = netClient.messageHandler.HandleReceivedPublicKey(buffer)
+			err = netClient.messageHandler.HandleHelloResponseMessage(buffer)
 			if err != nil {
 				fmt.Println(err)
 				c.Close()
@@ -331,10 +331,10 @@ func (netClient *NetClient) SendHello(servAddr string) error {
 
 //SendHelloResponse sends connection request accept and public key
 // Schema of frame
-// |uint32 listenport|keySize int32|key [bits]byte|
+// |uint32 listenport|keySizeEncrypted int32|keySize int32|key [bits]byte|
 func (netClient *NetClient) SendHelloResponse() error {
 
-	toSend, err := netClient.messageHandler.GenerateHelloMessage(netClient.listenport)
+	toSend, err := netClient.messageHandler.GenerateHelloResponseMessage(netClient.listenport)
 	if err != nil {
 		return err
 	}
