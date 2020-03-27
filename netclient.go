@@ -175,6 +175,13 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 					//c.Close()
 					return
 				}
+
+				if err := netClient.SendConnectionProperties(); err != nil {
+					fmt.Println(err)
+					//c.Close()
+					return
+				}
+
 			}
 
 			///	if response == gtk.RESPONSE_NO {
@@ -213,13 +220,13 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			app.SetConnected(true)
 			println("connected")
 
-			err = netClient.SendConnectionProperties()
+			/*	err = netClient.SendConnectionProperties()
 
-			if err != nil {
-				fmt.Println(err)
-				c.Close()
-				return
-			}
+				if err != nil {
+					fmt.Println(err)
+					c.Close()
+					return
+				}*/
 
 			//TODO GUI: Change status to: exchanging session key
 		}

@@ -131,7 +131,7 @@ func (encMess *EncMess) HandleReceivedPublicKey(key []byte) error {
 
 	encMess.publicKeyClient = make([]byte, bits)
 
-	if err = binary.Read(buf, endianness, encMess.publicKeyClient); err != nil {
+	if err = binary.Read(buf, endianness, &encMess.publicKeyClient); err != nil {
 		return err
 	}
 
@@ -190,6 +190,10 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 func (encMess *EncMess) GenerateHelloMessage(listenPort int32) (out []byte, err error) {
 
 	buf := new(bytes.Buffer)
+
+	hash := sha256.Sum256(encMess.myPublicKey)
+
+	fmt.Printf("PubKey Hash TEST: %s\n", hex.EncodeToString(hash[:]))
 
 	binary.Write(buf, endianness, listenPort)
 	binary.Write(buf, endianness, int32(cap(encMess.myPublicKey)))
