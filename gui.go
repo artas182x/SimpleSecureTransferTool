@@ -119,9 +119,6 @@ func (app *GUIApp) getConnectLayout() *gtk.Grid {
 	addressBox := getTextBox(addressCallback)
 	enterCallback := func(button *gtk.Button) {
 		text, _ := addressBox.GetText()
-		if len(strings.Split(text, ":")) == 1 {
-			text = fmt.Sprintf("%s:%d", text, app.port)
-		}
 		app.addressChosenCallback(text)
 	}
 	enterButton := getButton("Connect", enterCallback)
@@ -288,6 +285,9 @@ func (app *GUIApp) passwordCallback(encryptor EncMess) {
 }
 
 func (app *GUIApp) addressChosenCallback(address string) {
+	if len(strings.Split(address, ":")) == 1 {
+		address = fmt.Sprintf("%s:%d", address, app.port)
+	}
 	err := app.netClient.SendHello(address)
 	if err != nil {
 		println("not connected")
