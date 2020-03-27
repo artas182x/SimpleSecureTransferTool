@@ -3,12 +3,13 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha512"
+	"fmt"
 
 	"./remotes/pem"
 
-	"./remotes/x509"
+	"crypto/x509"
 
-	"./remotes/rsa"
+	"crypto/rsa"
 )
 
 //GenerateKeyPair is used for generating private and public key
@@ -24,12 +25,12 @@ func GenerateKeyPair(bits int) (privKey []byte, pubKey []byte, err error) {
 func EncryptRSA(data []byte, pubKey []byte) (out []byte, err error) {
 	pubKeyImported, err := importPublicKey(pubKey)
 	if err != nil {
-		return
+		return nil, err
 	}
 	hash := sha512.New()
 	out, err = rsa.EncryptOAEP(hash, rand.Reader, pubKeyImported, data, nil)
 	if err != nil {
-		return
+		return nil, err
 	}
 	out = exportMsg(out)
 	return
@@ -41,7 +42,7 @@ func DecryptRSA(data []byte, privKey []byte) (out []byte, err error) {
 	hash := sha512.New()
 	out, err = rsa.DecryptOAEP(hash, rand.Reader, privKeyImported, importMsg(data), nil)
 	if err != nil {
-		return
+		return nil, err
 	}
 	return
 }
@@ -59,21 +60,42 @@ func exportPrivateKey(privatekey *rsa.PrivateKey) []byte {
 }
 
 //importPrivateKey is used to import PCKS1 encoded private key
-func importPrivateKey(privKey []byte) (*rsa.PrivateKey, error) {
-	privKeyImported, rest := pem.Decode(privKey)
-	if privKeyImported == nil {
+func importPrivateKey(privKey []byte) (key *rsa.PrivateKey, err error) {
+	privKeyImported, _ := pem.Decode(privKey)
+	/*if privKeyImported == nil {
 		return x509.ParsePKCS1PrivateKey(rest)
+	}*/
+	if privKeyImported == nil {
+		privKey, _, _ = GenerateKeyPair(4096)
+		fmt.Println("Wrong public key")
+		return importPrivateKey(privKey)
 	}
-	return x509.ParsePKCS1PrivateKey(privKeyImported.Bytes)
+	key, err = x509.ParsePKCS1PrivateKey(privKeyImported.Bytes)
+	if err != nil {
+		privKey, _, _ = GenerateKeyPair(4096)
+		return importPrivateKey(privKey)
+	}
+	return
 }
 
 //importPublicKey is used to import PCKS1 encoded public key
-func importPublicKey(pubKey []byte) (*rsa.PublicKey, error) {
-	pubKeyImported, rest := pem.Decode(pubKey)
-	if pubKeyImported == nil {
+func importPublicKey(pubKey []byte) (key *rsa.PublicKey, err error) {
+	pubKeyImported, _ := pem.Decode(pubKey)
+	/*if pubKeyImported == nil {
 		return x509.ParsePKCS1PublicKey(rest)
+	}*/
+	if pubKeyImported == nil {
+		_, pubKey, _ = GenerateKeyPair(4096)
+		fmt.Println("Wrong public key")
+		return importPublicKey(pubKey)
 	}
-	return x509.ParsePKCS1PublicKey(pubKeyImported.Bytes)
+	key, err = x509.ParsePKCS1PublicKey(pubKeyImported.Bytes)
+	if err != nil {
+		_, pubKey, _ = GenerateKeyPair(4096)
+		fmt.Println("Wrong public key")
+		return importPublicKey(pubKey)
+	}
+	return
 
 }
 

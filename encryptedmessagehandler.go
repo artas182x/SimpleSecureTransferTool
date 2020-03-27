@@ -62,7 +62,13 @@ func (encMess *EncMess) HandleCipherMode(props []byte, app *GUIApp) error {
 	var err error
 
 	if decrypted, err = DecryptRSA(props, encMess.myPrivateKey); err != nil {
-		return err
+		encMess.cipherMode = 0
+		if app.cipherChoiceBox != nil {
+			glib.IdleAdd(func() {
+				app.UpdateCipherMode()
+			})
+		}
+		return nil
 	}
 
 	buf := bytes.NewBuffer(decrypted)
@@ -95,7 +101,13 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 	var err error
 
 	if decrypted, err = DecryptRSA(props, encMess.myPrivateKey); err != nil {
-		return err
+		encMess.setDefaultConnectionParameters()
+		if app.cipherChoiceBox != nil {
+			glib.IdleAdd(func() {
+				app.UpdateCipherMode()
+			})
+		}
+		return nil
 	}
 
 	buf := bytes.NewBuffer(decrypted)
@@ -129,24 +141,27 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 			//return err
 		}
 	}
-	//Wrong connection properties - assume defaults - don't throw error, it's project requirement
 	if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
-		encMess.keySize = 32
-		encMess.blockSize = aes.BlockSize
-		encMess.cipherMode = 0
-		encMess.alghorytm = 0
-		encMess.iv = make([]byte, encMess.blockSize)
-		encMess.aesKey = make([]byte, encMess.keySize)
-		encMess.generateRandomKeyandIV()
-	}
-
-	if app.cipherChoiceBox != nil {
-		glib.IdleAdd(func() {
-			app.UpdateCipherMode()
-		})
+		encMess.setDefaultConnectionParameters()
+		if app.cipherChoiceBox != nil {
+			glib.IdleAdd(func() {
+				app.UpdateCipherMode()
+			})
+		}
 	}
 
 	return nil
+}
+
+func (encMess *EncMess) setDefaultConnectionParameters() {
+	encMess.keySize = 32
+	encMess.blockSize = aes.BlockSize
+	encMess.cipherMode = 0
+	encMess.alghorytm = 0
+	encMess.iv = make([]byte, encMess.blockSize)
+	encMess.aesKey = make([]byte, encMess.keySize)
+	encMess.generateRandomKeyandIV()
+
 }
 
 //HandleReceivedPublicKey is being executed when we receive client's public key

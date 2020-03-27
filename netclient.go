@@ -168,8 +168,6 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 			}
 
 			if response == gtk.RESPONSE_YES {
-				app.SetConnected(true)
-				app.ChangeAddress(netClient.remoteIP)
 
 				if err := netClient.SendHelloResponse(); err != nil {
 					fmt.Println(err)
@@ -182,6 +180,8 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 					//c.Close()
 					return
 				}
+				app.SetConnected(true)
+				app.ChangeAddress(netClient.remoteIP)
 
 			}
 
