@@ -191,10 +191,6 @@ func (encMess *EncMess) GenerateHelloMessage(listenPort int32) (out []byte, err 
 
 	buf := new(bytes.Buffer)
 
-	hash := sha256.Sum256(encMess.myPublicKey)
-
-	fmt.Printf("PubKey Hash TEST: %s\n", hex.EncodeToString(hash[:]))
-
 	binary.Write(buf, endianness, listenPort)
 	binary.Write(buf, endianness, int32(cap(encMess.myPublicKey)))
 	binary.Write(buf, endianness, encMess.myPublicKey)

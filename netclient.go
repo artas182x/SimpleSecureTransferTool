@@ -393,6 +393,7 @@ func (netClient *NetClient) SendTextMessage(origText string, app *GUIApp) error 
 
 //ReceiveFile decrypts received file using AES
 func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error {
+	os.MkdirAll(netClient.receiveDir, os.ModePerm)
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
 	bufferCipherMode := make([]byte, 1)
