@@ -388,11 +388,13 @@ func (netClient *NetClient) SendTextMessage(origText string, app *GUIApp) error 
 func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error {
 	bufferFileName := make([]byte, 64)
 	bufferFileSize := make([]byte, 10)
+	bufferCipherMode := make([]byte, 1)
 
 	reader.Read(bufferFileSize)
 	fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
 
 	reader.Read(bufferFileName)
+	reader.Read(bufferCipherMode)
 	fileName := strings.Trim(string(bufferFileName), ":")
 	if app.messageTextBuffer != nil {
 		glib.IdleAdd(func() {
@@ -514,6 +516,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	conn.Write(buf.Bytes())
 	conn.Write([]byte(fileSize))
 	conn.Write([]byte(fileName))
+	conn.Write([]byte{byte(netClient.messageHandler.cipherMode)})
 
 	sendBuffer := make([]byte, bufsize)
 	sendBytes := 0

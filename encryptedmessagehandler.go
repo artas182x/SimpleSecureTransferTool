@@ -145,6 +145,11 @@ func (encMess *EncMess) HandleTextMessage(reader *bufio.Reader, app *GUIApp) err
 	var err error
 	var decrypted string
 	var size int32
+	var cipherMode byte
+
+	if err = binary.Read(reader, endianness, &cipherMode); err != nil {
+		return err
+	}
 
 	if err = binary.Read(reader, endianness, &size); err != nil {
 		return err
@@ -227,6 +232,7 @@ func (encMess *EncMess) GenerateTextMessage(origText string, app *GUIApp) ([]byt
 	}
 
 	buf := new(bytes.Buffer)
+	binary.Write(buf, endianness, []byte{byte(encMess.cipherMode)})
 	binary.Write(buf, endianness, int32(len(encrypted)))
 	binary.Write(buf, endianness, encrypted)
 
