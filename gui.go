@@ -4,11 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/gotk3/gotk3/glib"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/gotk3/gotk3/glib"
 	"github.com/gotk3/gotk3/gtk"
 )
 
@@ -21,6 +21,7 @@ type GUIApp struct {
 	//Messaging Layout
 	messageTextBuffer *gtk.TextBuffer
 	messageTextIter   *gtk.TextIter
+	messagesTextView  *gtk.TextView
 
 	//Connection Layout
 	connectionStatusLabel *gtk.Label
@@ -40,6 +41,12 @@ type GUIApp struct {
 	downloadTimeLabel   *gtk.Label
 	decryptProgressBar  *gtk.ProgressBar
 	decryptTimeLabel    *gtk.Label
+
+	//Inputs
+	textInput          *gtk.Entry
+	sendTextButton     *gtk.Button
+	cipherSelectButton *gtk.Button
+	sendFileButton     *gtk.Button
 
 	//NetClient
 	port      int32
@@ -138,13 +145,16 @@ func (app *GUIApp) getCipherChoiceLayout() *gtk.Grid {
 		choicesBox.AppendText(choices[i])
 	}
 	choicesBox.SetActive(1)
+	choicesBox.SetSensitive(false)
 	selectButton := getButton("Select", func(button *gtk.Button) {
 		app.cipherChosenCallback(choicesBox.GetActive())
 	})
+	selectButton.SetSensitive(false)
 	layout.Attach(titleLabel, 0, 0, 2, 1)
 	layout.Attach(choicesBox, 0, 1, 1, 1)
 	layout.Attach(selectButton, 1, 1, 1, 1)
 	app.cipherChoiceBox = choicesBox
+	app.cipherSelectButton = selectButton
 	return layout
 }
 
@@ -209,6 +219,7 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 		app.messageWrittenCallback(text)
 	}
 	textInput := getTextBox(textBoxCallback)
+	textInput.SetSensitive(false)
 	promptLabel, _ := gtk.LabelNew("Write message: ")
 	enterButtonCallback := func(button *gtk.Button) {
 		text, _ := textInput.GetText()
@@ -218,14 +229,18 @@ func (app *GUIApp) getMessagesLayout() *gtk.Grid {
 		app.messageWrittenCallback(text)
 	}
 	enterButton := getButton("Send", enterButtonCallback)
+	enterButton.SetSensitive(false)
 	scrolledWindow.Add(textView)
 	layout.Attach(titleLabel, 0, 0, 3, 1)
 	layout.Attach(scrolledWindow, 0, 1, 3, 1)
 	layout.Attach(promptLabel, 0, 2, 1, 1)
 	layout.Attach(textInput, 1, 2, 1, 1)
 	layout.Attach(enterButton, 2, 2, 1, 1)
+	app.textInput = textInput
+	app.sendTextButton = enterButton
 	app.messageTextBuffer = textBuffer
 	app.messageTextIter = iter
+	app.messagesTextView = textView
 	return layout
 }
 
@@ -240,6 +255,7 @@ func (app *GUIApp) getConfigLayout() *gtk.Grid {
 		app.showSendFilePopup()
 	}
 	sendFileButton := getButton("Send file", sendFileButtonPressedCallback)
+	sendFileButton.SetSensitive(false)
 	layout.Attach(connectedLabel, 0, 0, 1, 1)
 	layout.Attach(statusLabel, 1, 0, 1, 1)
 	layout.Attach(separator, 0, 1, 2, 1)
@@ -248,6 +264,7 @@ func (app *GUIApp) getConfigLayout() *gtk.Grid {
 	layout.Attach(cipherLayout, 0, 4, 2, 1)
 	layout.Attach(separator, 0, 5, 2, 1)
 	layout.Attach(sendFileButton, 0, 6, 2, 2)
+	app.sendFileButton = sendFileButton
 	app.connectionStatusLabel = statusLabel
 	return layout
 }
@@ -258,6 +275,15 @@ func (app *GUIApp) messageWrittenCallback(message string) {
 		println(err.Error())
 	}
 	println("sending message: ", message)
+	for {
+		if gtk.EventsPending() {
+			gtk.MainIterationDo(false)
+		} else {
+			break
+		}
+	}
+	autoIter := app.messageTextBuffer.GetIterAtLine(app.messageTextBuffer.GetLineCount())
+	app.messagesTextView.ScrollToIter(autoIter, 0.0, true, 0.5, 0.5)
 }
 
 func (app *GUIApp) cipherChosenCallback(cipher int) {
@@ -278,15 +304,16 @@ func (app *GUIApp) passwordCallback(encryptor EncMess) {
 	pane.Pack1(leftLayout, true, true)
 	rightLayout := app.getConfigLayout()
 	pane.Pack2(rightLayout, true, true)
-	app.mainLayout.Add(pane)
+	hash := sha256.Sum256(app.netClient.messageHandler.publicKeyClient)
+	hashLabel, _ := gtk.LabelNew("My Public Key SHA256 digest: " + hex.EncodeToString(hash[:]) + "\n")
+	app.mainLayout.Attach(hashLabel, 0, 0, 1, 1)
+	app.mainLayout.Attach(pane, 0, 1, 1, 1)
 	app.mainWindow.ShowAll()
 }
 
 func (app *GUIApp) addressChosenCallback(address string) {
-	hash := sha256.Sum256(app.netClient.messageHandler.myPublicKey)
-	app.messageTextBuffer.Insert(app.messageTextIter, "My public key SHA-256 digest: "+hex.EncodeToString(hash[:])+"\n")
 	if len(strings.Split(address, ":")) == 1 {
-		address = fmt.Sprintf("%s:%d", address, app.port)
+		address = fmt.Sprintf("%s:%d", address, 27002)
 	}
 	err := app.netClient.SendHello(address)
 	if err != nil {
@@ -313,7 +340,7 @@ func (app *GUIApp) showErrorPopup(err error) {
 	popup.Run()
 }
 
-//ShowDownloadFilePopup shows dialog containinf downloading and decypting file progress bar
+//ShowDownloadFilePopup shows dialog containing downloading and decrypting file progress bar
 func (app *GUIApp) ShowDownloadFilePopup(filename string) {
 	window, _ := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	window.SetTitle("Downloading File")
@@ -375,6 +402,15 @@ func (app *GUIApp) ShowMessage(message string) {
 func (app *GUIApp) PushMessageToBuffer(message string) {
 	str := fmt.Sprintf("%s %s", time.Now().Format("15:04"), message)
 	app.messageTextBuffer.Insert(app.messageTextIter, str)
+	for {
+		if gtk.EventsPending() {
+			gtk.MainIterationDo(false)
+		} else {
+			break
+		}
+	}
+	autoIter := app.messageTextBuffer.GetIterAtLine(app.messageTextBuffer.GetLineCount())
+	app.messagesTextView.ScrollToIter(autoIter, 0.0, true, 0.5, 0.5)
 }
 
 //ChangeAddress sets showed address to value
@@ -405,6 +441,11 @@ func (app *GUIApp) SetConnected(connected bool) {
 			}
 		})
 	}
+	app.textInput.SetSensitive(connected)
+	app.sendTextButton.SetSensitive(connected)
+	app.cipherChoiceBox.SetSensitive(connected)
+	app.cipherSelectButton.SetSensitive(connected)
+	app.sendFileButton.SetSensitive(connected)
 }
 
 //RunGUI starts gui of the application
