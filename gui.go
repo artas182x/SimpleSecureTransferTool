@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/gotk3/gotk3/gtk"
@@ -44,7 +45,7 @@ type GUIApp struct {
 //GUIAppNew return new instance of application
 func GUIAppNew(port int32) (app GUIApp) {
 	app.port = port
-	app.mainWindow = initWindow("SimpleSecureTransferTool")
+	app.mainWindow = initWindow(fmt.Sprintf("SimpleSecureTransferTool - listening on port %d", port))
 	app.mainLayout = getGridLayout()
 	if isPasswordSet() {
 		app.mainLayout.Add(app.getLoginLayout())
@@ -253,7 +254,7 @@ func (app *GUIApp) messageWrittenCallback(message string) {
 }
 
 func (app *GUIApp) cipherChosenCallback(cipher int) {
-	app.netClient.SetCipher(cipherblockmode(cipher))
+	app.netClient.setCipher(cipherblockmode(cipher))
 	err := app.netClient.SendConnectionProperties()
 	if err != nil {
 		println(err.Error())
@@ -304,6 +305,7 @@ func (app *GUIApp) showErrorPopup(err error) {
 	popup.Run()
 }
 
+//ShowDownloadFilePopup shows dialog containinf downloading and decypting file progress bar
 func (app *GUIApp) ShowDownloadFilePopup(filename string) {
 	window, _ := gtk.WindowNew(gtk.WINDOW_TOPLEVEL)
 	window.SetTitle("Downloading File")
@@ -353,7 +355,7 @@ func (app *GUIApp) UpdateUploadProgress(value float64, duration string) {
 
 //UpdateCipherMode updates cipher mode choice box
 func (app *GUIApp) UpdateCipherMode() {
-	app.cipherChoiceBox.SetActive(int(app.netClient.GetCipher()))
+	app.cipherChoiceBox.SetActive(int(app.netClient.getCipher()))
 }
 
 //ShowMessage shows user message in the messaging box
