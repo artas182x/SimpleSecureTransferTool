@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/gotk3/gotk3/gtk"
 )
@@ -116,6 +117,9 @@ func (app *GUIApp) getConnectLayout() *gtk.Grid {
 	addressBox := getTextBox(addressCallback)
 	enterCallback := func(button *gtk.Button) {
 		text, _ := addressBox.GetText()
+		if len(strings.Split(text, ":")) == 1 {
+			text = fmt.Sprintf("%s:%d", text, app.port)
+		}
 		app.addressChosenCallback(text)
 	}
 	enterButton := getButton("Connect", enterCallback)
@@ -128,7 +132,7 @@ func (app *GUIApp) getConnectLayout() *gtk.Grid {
 
 func (app *GUIApp) getCipherChoiceLayout() *gtk.Grid {
 	layout := getGridLayout()
-	titleLabel, _ := gtk.LabelNew("Choose algorithm: ")
+	titleLabel, _ := gtk.LabelNew("Choose cipher mode: ")
 	choices := [4]string{"ECB", "CBC", "CFB", "OFB"}
 	choicesBox, _ := gtk.ComboBoxTextNew()
 	for i := 0; i < len(choices); i++ {
@@ -283,6 +287,7 @@ func (app *GUIApp) addressChosenCallback(address string) {
 	err := app.netClient.SendHello(address)
 	if err != nil {
 		println("not connected")
+		app.messageTextBuffer.Insert(app.messageTextIter, fmt.Sprintf("%v\n", err))
 		app.netClient.connected = false
 		app.connectionStatusLabel.SetText("No")
 	} else {

@@ -303,7 +303,7 @@ func (netClient *NetClient) send(message []byte, ptype packettype, servAddr stri
 	conn.Read(bufferbyte)
 
 	if string(bufferbyte) != "OK" {
-		return nil, errors.New("Wrong response")
+		return nil, errors.New("Connection error. Request: " + string(ptype))
 	}
 
 	conn.Close()
