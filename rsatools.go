@@ -86,13 +86,13 @@ func importPublicKey(pubKey []byte) (key *rsa.PublicKey, err error) {
 	}*/
 	if pubKeyImported == nil {
 		_, pubKey, _ = GenerateKeyPair(4096)
-		fmt.Println("Wrong public key")
+	//	fmt.Println("Wrong public key")
 		return importPublicKey(pubKey)
 	}
 	key, err = x509.ParsePKCS1PublicKey(pubKeyImported.Bytes)
 	if err != nil {
 		_, pubKey, _ = GenerateKeyPair(4096)
-		fmt.Println("Wrong public key")
+	//	fmt.Println("Wrong public key")
 		return importPublicKey(pubKey)
 	}
 	return

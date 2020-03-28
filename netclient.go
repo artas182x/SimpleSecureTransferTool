@@ -145,9 +145,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				c.Close()
 			}
 
-			c.Write([]byte("OK"))
-			c.Close()
-			c = nil
+			closeConnection(c)
 
 			hash := sha256.Sum256(netClient.messageHandler.publicKeyClient)
 
@@ -214,11 +212,12 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 
 			fmt.Println("Received hello response")
 
+			closeConnection(c)
+
 			err = netClient.SendConnectionProperties()
 
 			if err != nil {
 				fmt.Println(err)
-				c.Close()
 				return
 			}
 
@@ -234,17 +233,18 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				return
 			}
 
+			closeConnection(c)
+
 			err = netClient.SendConnectionPropertiesResponse()
 
 			if err != nil {
 				fmt.Println(err)
-				c.Close()
+				//c.Close()
 				return
 			}
 
 			app.ChangeAddress(netClient.remoteIP)
 			app.SetConnected(true)
-			println("connected")
 
 			fmt.Println("Received connection properties")
 		}
@@ -304,10 +304,7 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 		return
 	}
 
-	if c != nil {
-		c.Write([]byte("OK"))
-		c.Close()
-	}
+	closeConnection(c)
 
 }
 
@@ -340,7 +337,7 @@ func (netClient *NetClient) send(message []byte, ptype packettype, servAddr stri
 	conn.Read(bufferbyte)
 
 	if string(bufferbyte) != "OK" {
-		return nil, errors.New("Connection error. Request: " + string(ptype))
+		return nil, errors.New("NetClient.send: Connection error")
 	}
 
 	conn.Close()
@@ -489,7 +486,7 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 		io.CopyN(newFile, reader, bufsize)
 		receivedBytes += bufsize
 
-		fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
+		//	fmt.Printf("Downloading file: %f\n", float64(receivedBytes)/float64(fileSize)*100)
 		if app.downloadProgressBar != nil {
 			value := float64(receivedBytes) / float64(fileSize)
 			duration = time.Now().Sub(timeStart)
@@ -600,7 +597,7 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 			break
 		}
 
-		fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
+		//	fmt.Printf("Uploading file: %f\n", float64(sendBytes)/float64(stat2.Size())*100)
 		if app.uploadProgressBar != nil {
 			duration = time.Now().Sub(startTime)
 			glib.IdleAdd(func() {
@@ -660,4 +657,12 @@ func (netClient *NetClient) Ping() bool {
 //TODO In gui. Set text and buttons based on this state
 func (netClient *NetClient) SetClientState(connected bool) {
 	netClient.connected = connected
+}
+
+func closeConnection(c net.Conn) {
+	if c != nil {
+		c.Write([]byte("OK"))
+		c.Close()
+		c = nil
+	}
 }
