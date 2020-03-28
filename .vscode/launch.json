@@ -19,6 +19,13 @@
             "program": "${fileDirname}",
             "env": {},
             "args": []
+        },
+        {
+            "name": "Launch executable",
+            "type": "go",
+            "request": "launch",
+            "mode": "exec",
+            "program": "${fileDirname}/example_goencryption"
         }
     ]
 }

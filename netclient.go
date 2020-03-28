@@ -43,6 +43,7 @@ const (
 	HELLO = iota
 	HELLORESPONSE
 	CONNECTIONPROPERTIES
+	CONNECTIONPROPERTIESRESPONSE
 	CIPHERMODE
 	TEXTMESSAGE
 	FILE
@@ -175,13 +176,8 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 					return
 				}
 
-				if err := netClient.SendConnectionProperties(); err != nil {
-					fmt.Println(err)
-					//c.Close()
-					return
-				}
-				app.SetConnected(true)
-				app.ChangeAddress(netClient.remoteIP)
+				//	app.SetConnected(true)
+				//app.ChangeAddress(netClient.remoteIP)
 
 			}
 
@@ -218,13 +214,13 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 
 			fmt.Println("Received hello response")
 
-			/*	err = netClient.SendConnectionProperties()
+			err = netClient.SendConnectionProperties()
 
-				if err != nil {
-					fmt.Println(err)
-					c.Close()
-					return
-				}*/
+			if err != nil {
+				fmt.Println(err)
+				c.Close()
+				return
+			}
 
 			//TODO GUI: Change status to: exchanging session key
 		}
@@ -238,10 +234,34 @@ func (netClient *NetClient) handleIncomingConnection(c net.Conn, app *GUIApp) {
 				return
 			}
 
+			err = netClient.SendConnectionPropertiesResponse()
+
+			if err != nil {
+				fmt.Println(err)
+				c.Close()
+				return
+			}
+
+			app.ChangeAddress(netClient.remoteIP)
 			app.SetConnected(true)
 			println("connected")
 
 			fmt.Println("Received connection properties")
+		}
+
+	case CONNECTIONPROPERTIESRESPONSE:
+		if !netClient.connected {
+			reader.Read(buffer)
+			err = netClient.messageHandler.HandleConnectionPropertiesResponse(buffer, app)
+			if err != nil {
+				fmt.Println(err)
+				c.Close()
+				return
+			}
+
+			app.SetConnected(true)
+
+			fmt.Println("Received connection properties response")
 		}
 
 	case CIPHERMODE:
@@ -377,6 +397,23 @@ func (netClient *NetClient) SendCipherMode() error {
 	}
 
 	_, err = netClient.send(toSend, CIPHERMODE, netClient.remoteIP)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//SendConnectionPropertiesResponse generates and sends client properties response frame
+func (netClient *NetClient) SendConnectionPropertiesResponse() error {
+	toSend, err := netClient.messageHandler.GenerateConnectionPropertiesResponse()
+
+	if err != nil {
+		return err
+	}
+
+	_, err = netClient.send(toSend, CONNECTIONPROPERTIESRESPONSE, netClient.remoteIP)
 
 	if err != nil {
 		return err

@@ -45,8 +45,8 @@ func EncryptedMessageHandler(keySize uint32, cipher cipherblockmode) (encMess En
 	encMess.alghorytm = 0
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	encMess.iv = make([]byte, encMess.blockSize)
-	encMess.aesKey = make([]byte, encMess.keySize)
+	//encMess.iv = make([]byte, encMess.blockSize)
+	//encMess.aesKey = make([]byte, encMess.keySize)
 	encMess.generateRandomKeyandIV()
 
 	return
@@ -91,9 +91,53 @@ func (encMess *EncMess) HandleCipherMode(props []byte, app *GUIApp) error {
 	return nil
 }
 
+//HandleConnectionPropertiesResponse decrypts connection properties using private key and sets all properties
+//  Schema of frame
+// |aesKey [keysize]byte|IV [blocksize]byte|
+//
+func (encMess *EncMess) HandleConnectionPropertiesResponse(props []byte, app *GUIApp) error {
+
+	var decrypted []byte
+	var err error
+
+	if decrypted, err = DecryptRSA(props, encMess.myPrivateKey); err != nil {
+		if app.cipherChoiceBox != nil {
+			glib.IdleAdd(func() {
+				app.UpdateCipherMode()
+			})
+		}
+		return nil
+	}
+
+	buf := bytes.NewBuffer(decrypted)
+
+	aesKeyRv := make([]byte, encMess.keySize)
+
+	if err = binary.Read(buf, endianness, aesKeyRv); err != nil {
+		//	return err
+	}
+
+	ivRv := make([]byte, encMess.blockSize)
+
+	if err = binary.Read(buf, endianness, ivRv); err != nil {
+		//return err
+	}
+
+	//XORing our aes key and iv with received iv to improve security. Both clients are now responsible for generating these properties
+	for i := 0; i < int(encMess.keySize); i++ {
+		encMess.aesKey[i] ^= aesKeyRv[i]
+	}
+
+	for i := 0; i < int(encMess.blockSize); i++ {
+		encMess.iv[i] ^= ivRv[i]
+	}
+
+	return nil
+}
+
 //HandleConnectionProperties decrypts connection properties using private key and sets all properties
 //  Schema of frame
-// |alghorytm byte|keysize int32|blocksize int32|ciphermode byte|aesKey [keysize]byte|IV (if exists) [blocksize]byte|
+// |alghorytm byte|keysize int32|blocksize int32|ciphermode byte|aesKey [keysize]byte|IV [blocksize]byte|
 //
 func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) error {
 
@@ -136,11 +180,10 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 
 	encMess.iv = make([]byte, encMess.blockSize)
 
-	if encMess.cipherMode == CBC || encMess.cipherMode == OFB || encMess.cipherMode == CFB {
-		if err = binary.Read(buf, endianness, encMess.iv); err != nil {
-			//return err
-		}
+	if err = binary.Read(buf, endianness, encMess.iv); err != nil {
+		//return err
 	}
+
 	if encMess.cipherMode > 4 || encMess.blockSize%8 != 0 || encMess.keySize%8 != 0 {
 		encMess.setDefaultConnectionParameters()
 		if app.cipherChoiceBox != nil {
@@ -154,13 +197,14 @@ func (encMess *EncMess) HandleConnectionProperties(props []byte, app *GUIApp) er
 }
 
 func (encMess *EncMess) setDefaultConnectionParameters() {
+	fmt.Println("Setting default connection parameters")
 	encMess.keySize = 32
 	encMess.blockSize = aes.BlockSize
 	encMess.cipherMode = 0
 	encMess.alghorytm = 0
-	encMess.iv = make([]byte, encMess.blockSize)
-	encMess.aesKey = make([]byte, encMess.keySize)
-	encMess.generateRandomKeyandIV()
+	//encMess.iv = make([]byte, encMess.blockSize)
+	//encMess.aesKey = make([]byte, encMess.keySize)
+	//encMess.generateRandomKeyandIV()
 
 }
 
@@ -182,6 +226,8 @@ func (encMess *EncMess) HandleReceivedPublicKey(key []byte) error {
 	if err = binary.Read(buf, endianness, &encMess.publicKeyClient); err != nil {
 		return err
 	}
+
+	encMess.generateRandomKeyandIV()
 
 	return nil
 
@@ -262,7 +308,6 @@ func (encMess *EncMess) GenerateCipherMode() ([]byte, error) {
 // |alghorytm byte|keysize int32|blocksize int32|ciphermode byte|aesKey [keysize]byte|IV (if exists) [blocksize]byte|
 //
 func (encMess *EncMess) GenerateConnectionProperties() ([]byte, error) {
-	encMess.generateRandomKeyandIV()
 	buf := new(bytes.Buffer)
 	binary.Write(buf, endianness, encMess.alghorytm)
 	binary.Write(buf, endianness, encMess.keySize)
@@ -270,13 +315,44 @@ func (encMess *EncMess) GenerateConnectionProperties() ([]byte, error) {
 	binary.Write(buf, endianness, encMess.cipherMode)
 	binary.Write(buf, endianness, encMess.aesKey)
 
-	if encMess.cipherMode == CBC || encMess.cipherMode == OFB || encMess.cipherMode == CFB {
-		binary.Write(buf, endianness, encMess.iv)
-	}
+	binary.Write(buf, endianness, encMess.iv)
 
 	out, err := EncryptRSA(buf.Bytes(), encMess.publicKeyClient)
 	if err != nil {
 		return nil, err
+	}
+
+	return out, nil
+}
+
+//GenerateConnectionPropertiesResponse generates encrypted connection properties response frame using current settings. Also it generates our
+// factor of aes key and iv and XORs it with received key from second client for security
+// Schema of frame
+// |aesKey [keysize]byte|IV [blocksize]byte|
+//
+func (encMess *EncMess) GenerateConnectionPropertiesResponse() ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	iv2 := make([]byte, encMess.blockSize)
+	aesKey2 := make([]byte, encMess.keySize)
+	GenerateIV(iv2)
+	GenerateKey(aesKey2)
+
+	binary.Write(buf, endianness, aesKey2)
+	binary.Write(buf, endianness, iv2)
+
+	out, err := EncryptRSA(buf.Bytes(), encMess.publicKeyClient)
+	if err != nil {
+		return nil, err
+	}
+
+	//XORing our aes key and iv with received iv to improve security. Both clients are now responsible for generating these properties
+	for i := 0; i < int(encMess.keySize); i++ {
+		encMess.aesKey[i] ^= aesKey2[i]
+	}
+
+	for i := 0; i < int(encMess.blockSize); i++ {
+		encMess.iv[i] ^= iv2[i]
 	}
 
 	return out, nil
@@ -364,7 +440,7 @@ func (encMess *EncMess) CreateKeys(dir string, password string, app *GUIApp) (er
 	}
 
 	iv := make([]byte, aes.BlockSize)
-	GenerateIV(encMess.iv)
+	GenerateIV(iv)
 
 	if _, err = privKeyEncrypted.Write(iv); err != nil {
 		return err
