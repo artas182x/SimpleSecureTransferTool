@@ -457,14 +457,29 @@ func (netClient *NetClient) SendTextMessage(origText string, app *GUIApp) error 
 //ReceiveFile decrypts received file using AES
 func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error {
 	os.MkdirAll(netClient.receiveDir, os.ModePerm)
-	bufferFileName := make([]byte, 64)
+
 	bufferFileSize := make([]byte, 10)
+	var fileNameSize int32
+
+	binary.Read(reader, endianness, &fileNameSize)
+	bufferFileName := make([]byte, fileNameSize)
+
+	fmt.Println(fileNameSize)
 
 	reader.Read(bufferFileSize)
 	fileSize, _ := strconv.ParseInt(strings.Trim(string(bufferFileSize), ":"), 10, 64)
 
 	reader.Read(bufferFileName)
-	fileName := strings.Trim(string(bufferFileName), ":")
+
+	fileName, err := DecryptTextMessage(netClient.messageHandler.aesKey, netClient.messageHandler.iv, bufferFileName, netClient.messageHandler.cipherMode, app)
+
+	if err != nil {
+		fmt.Println(err)
+		fileName = randString(10)
+	}
+
+	fileName = strings.Trim(string(fileName), ":")
+
 	if app.messageTextBuffer != nil {
 		glib.IdleAdd(func() {
 			app.ShowDownloadFilePopup(fileName)
@@ -583,16 +598,25 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	}
 
 	fileSize := fillString(strconv.FormatInt(stat2.Size(), 10), 10)
-	fileName := fillString(stat.Name(), 64)
+
+	fileName, err := EncryptTextMessage(netClient.messageHandler.aesKey, netClient.messageHandler.iv, fillString(stat.Name(), 64), netClient.messageHandler.cipherMode, app)
+
+	if err != nil {
+		fmt.Println(err)
+		fileName = []byte(randString(68))
+	}
+
+	fmt.Println(len(fileName))
 
 	buf := new(bytes.Buffer)
 
 	binary.Write(buf, endianness, magicnumber)
 	binary.Write(buf, endianness, packettype(FILE))
 
+	binary.Write(buf, endianness, int32(len(fileName)))
 	conn.Write(buf.Bytes())
 	conn.Write([]byte(fileSize))
-	conn.Write([]byte(fileName))
+	conn.Write(fileName)
 
 	sendBuffer := make([]byte, bufsize)
 	sendBytes := 0
