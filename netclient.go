@@ -474,6 +474,9 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 	if err != nil {
 		return err
 	}
+
+	defer os.Remove(fileName + ".encrypted")
+
 	var receivedBytes int64
 	timeStart := time.Now()
 	duration := time.Now().Sub(timeStart)
@@ -506,6 +509,8 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 		return err
 	}
 
+	defer newFileDecrypted.Close()
+
 	newFile.Close()
 
 	newFile, err = os.Open(fileName + ".encrypted")
@@ -514,17 +519,14 @@ func (netClient *NetClient) ReceiveFile(reader *bufio.Reader, app *GUIApp) error
 		return err
 	}
 
+	defer newFile.Close()
+
 	fmt.Println("Decrypting file...")
 
 	if err := DecryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, newFile,
 		newFileDecrypted, netClient.messageHandler.cipherMode, app); err != nil {
 		return err
 	}
-
-	newFile.Close()
-	newFileDecrypted.Close()
-
-	os.Remove(fileName + ".encrypted")
 
 	fmt.Println("Decrypted successfully")
 
@@ -540,6 +542,8 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	if fileEncrypted, err = os.Create(randFileName); err != nil {
 		return err
 	}
+
+	defer os.Remove(randFileName)
 
 	if err := EncryptFile(netClient.messageHandler.aesKey, netClient.messageHandler.iv, file,
 		fileEncrypted, netClient.messageHandler.cipherMode, app); err != nil {
@@ -559,6 +563,8 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 		return err
 	}
 
+	defer conn.Close()
+
 	stat, err := file.Stat()
 	if err != nil {
 		return err
@@ -568,6 +574,8 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	if err != nil {
 		return err
 	}
+
+	defer fileEncrypted.Close()
 
 	stat2, err := fileEncrypted.Stat()
 	if err != nil {
@@ -617,11 +625,6 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	if string(bufferbyte) != "OK" {
 		return errors.New("Wrong response")
 	}
-
-	conn.Close()
-
-	fileEncrypted.Close()
-	os.Remove(randFileName)
 
 	return nil
 
