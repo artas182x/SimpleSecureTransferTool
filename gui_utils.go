@@ -77,7 +77,7 @@ func getProgressBar() *gtk.ProgressBar {
 	progressBar, _ := gtk.ProgressBarNew()
 	styleContext, _ := progressBar.GetStyleContext()
 	mRefProvider, _ := gtk.CssProviderNew()
-	if err := mRefProvider.LoadFromPath("styles.css"); err != nil {
+	if err := mRefProvider.LoadFromData("progress, trough {min-height: 20px;}"); err != nil {
 		log.Println(err)
 	}
 	styleContext.AddProvider(mRefProvider, gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
