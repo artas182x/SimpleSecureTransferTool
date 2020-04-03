@@ -440,13 +440,14 @@ func (app *GUIApp) SetConnected(connected bool) {
 				app.connectionStatusLabel.SetText("No")
 				app.PushMessageToBuffer("Disconnected\n")
 			}
+
+			app.textInput.SetSensitive(connected)
+			app.sendTextButton.SetSensitive(connected)
+			app.cipherChoiceBox.SetSensitive(connected)
+			app.cipherSelectButton.SetSensitive(connected)
+			app.sendFileButton.SetSensitive(connected)
 		})
 	}
-	app.textInput.SetSensitive(connected)
-	app.sendTextButton.SetSensitive(connected)
-	app.cipherChoiceBox.SetSensitive(connected)
-	app.cipherSelectButton.SetSensitive(connected)
-	app.sendFileButton.SetSensitive(connected)
 }
 
 //RunGUI starts gui of the application
