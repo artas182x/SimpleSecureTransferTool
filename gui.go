@@ -48,6 +48,7 @@ type GUIApp struct {
 	sendTextButton     *gtk.Button
 	cipherSelectButton *gtk.Button
 	sendFileButton     *gtk.Button
+	enterButton        *gtk.Button
 
 	//NetClient
 	port      int32
@@ -126,13 +127,17 @@ func (app *GUIApp) getConnectLayout() *gtk.Grid {
 	}
 	addressBox := getTextBox(addressCallback)
 	enterCallback := func(button *gtk.Button) {
-		text, _ := addressBox.GetText()
-		app.addressChosenCallback(text)
+		if !app.netClient.connected {
+			text, _ := addressBox.GetText()
+			app.addressChosenCallback(text)
+		} else {
+			app.SetConnected(false)
+		}
 	}
-	enterButton := getButton("Connect", enterCallback)
+	app.enterButton = getButton("Connect", enterCallback)
 	layout.Attach(titleLabel, 0, 0, 1, 1)
 	layout.Attach(addressBox, 1, 0, 1, 1)
-	layout.Attach(enterButton, 0, 1, 2, 1)
+	layout.Attach(app.enterButton, 0, 1, 2, 1)
 	app.addressBox = addressBox
 	return layout
 }
@@ -436,9 +441,11 @@ func (app *GUIApp) SetConnected(connected bool) {
 			if connected {
 				app.connectionStatusLabel.SetText("Yes")
 				app.PushMessageToBuffer("Connected\n")
+				app.enterButton.SetLabel("Disconnect")
 			} else {
 				app.connectionStatusLabel.SetText("No")
 				app.PushMessageToBuffer("Disconnected\n")
+				app.enterButton.SetLabel("Connect")
 			}
 
 			app.textInput.SetSensitive(connected)

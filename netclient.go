@@ -663,6 +663,10 @@ func (netClient *NetClient) StartPinging(app *GUIApp) {
 			break
 		}
 
+		if netClient.connected == false {
+			break
+		}
+
 	}
 }
 
