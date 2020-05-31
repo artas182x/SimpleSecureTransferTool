@@ -599,8 +599,8 @@ func (netClient *NetClient) SendFile(file *os.File, app *GUIApp) error {
 	}
 
 	fileSize := fillString(strconv.FormatInt(stat2.Size(), 10), 10)
-
-	fileName, err := EncryptTextMessage(netClient.messageHandler.aesKey, netClient.messageHandler.iv, stat.Name(), netClient.messageHandler.cipherMode, app)
+	var nullGuiApp GUIApp
+	fileName, err := EncryptTextMessage(netClient.messageHandler.aesKey, netClient.messageHandler.iv, stat.Name(), netClient.messageHandler.cipherMode, &nullGuiApp)
 
 	if err != nil {
 		fmt.Println(err)

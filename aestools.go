@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -40,7 +41,7 @@ func GenerateKey(key []byte) (err error) {
 
 //Used for ECB and CBC ciphers only because they implement BlockMode interface
 func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, size uint64, app *GUIApp) error {
-	blockSize := mode.BlockSize() * 2048
+	blockSize := mode.BlockSize() * 16384
 
 	//Write size at the beggining
 	if err := binary.Write(writer, binary.BigEndian, size); err != nil {
@@ -73,6 +74,8 @@ func encryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, si
 			})
 		}
 	}
+	duration = time.Now().Sub(timeStart)
+	fmt.Print("Duration: " + duration.String())
 	if app.encryptProgressBar != nil {
 		glib.IdleAdd(func() {
 			app.UpdateEncryptionProgress(1.0, duration.String())
@@ -86,7 +89,7 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, ap
 
 	var size uint64
 	var readBytes uint64
-	blockSize := mode.BlockSize() * 2048
+	blockSize := mode.BlockSize() * 16384
 
 	//Read size at the beggining
 	if err := binary.Read(reader, binary.BigEndian, &size); err != nil {
@@ -136,6 +139,8 @@ func decryptStream(mode cipher.BlockMode, reader io.Reader, writer io.Writer, ap
 			app.UpdateDecryptionProgress(1.0, duration.String())
 		})
 	}
+	duration = time.Now().Sub(timeStart)
+	fmt.Print("Duration: " + duration.String())
 	return nil
 }
 
@@ -177,6 +182,8 @@ func encryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 			panic(err)
 		}
 	}
+	duration = time.Now().Sub(startTime)
+	fmt.Print("Duration: " + duration.String())
 	return
 }
 
@@ -245,7 +252,8 @@ func encryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 			panic(err)
 		}
 	}
-
+	duration = time.Now().Sub(startTime)
+	fmt.Print("Duration: " + duration.String())
 	return
 }
 
@@ -287,7 +295,8 @@ func decryptCFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 			panic(err)
 		}
 	}
-
+	duration = time.Now().Sub(startTime)
+	fmt.Print("Duration: " + duration.String())
 	return
 }
 
@@ -304,7 +313,6 @@ func decryptCBC(key []byte, iv []byte, bReader io.Reader, out io.Writer, app *GU
 	if err != nil {
 		return err
 	}
-
 	return
 }
 
@@ -321,7 +329,6 @@ func decryptECB(key []byte, bReader io.Reader, out io.Writer, app *GUIApp) (err 
 	if err != nil {
 		return err
 	}
-
 	return
 }
 
@@ -363,7 +370,8 @@ func decryptOFB(key []byte, iv []byte, bReader io.Reader, out io.Writer, size ui
 			panic(err)
 		}
 	}
-
+	duration = time.Now().Sub(startTime)
+	fmt.Print("Duration: " + duration.String())
 	return
 }
 
